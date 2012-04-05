@@ -1,0 +1,221 @@
+#!/usr/bin/env python
+
+import re
+import sys
+
+class SyntaxError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+OPCODES = {}
+
+class Basic(object):
+    def __init__(self, name, code):
+        OPCODES[name] = self
+        self.name = name
+        self.code = code
+    def make(self, args):
+        if len(args) != 2: raise SyntaxError("expected 2 args")
+        a, b = [parse_arg(x) for x in args]
+        def emit(program):
+            program.append((b.value() << 10) + (a.value() << 4) + self.code)
+            a.emit(program)
+            b.emit(program)
+        return emit
+
+class NonBasic(object):
+    def __init__(self, name, code):
+        OPCODES[name] = self
+        self.name = name
+        self.code = code
+    def make(self, args):
+        a = parse_arg(args[0])
+        if len(args) != 1: raise SyntaxError("expected 1 arg")
+        def emit(program):
+            program.append((a.value() << 10) + (self.code << 4) + 0x00)
+            a.emit(program)
+        return emit
+
+class DW(object):
+    def __init__(self):
+        OPCODES["DW"] = self
+    def make(self, args):
+        args = [parse_lit(x) for x in args]
+        def emit(program):
+            for a in args: program.append(a)
+        return emit
+
+class DZ(object):
+    def __init__(self):
+        OPCODES["DZ"] = self
+    def make(self, args):
+        if len(args) != 1: raise SyntaxError("expected 1 arg")
+        arg = args[0]
+        if arg[0] != '"' or arg[-1] != '"':
+            raise SyntaxError("expected quoted ascii")
+        arg = arg[1:-1]
+        def emit(program):
+            cs = [ord(x) for x in arg]
+            if len(cs) % 2 == 1: cs.append(0)
+            for pair in zip(*[iter(cs)]*2):
+                program.append((pair[0] << 8) + pair[1])
+        return emit
+
+# basic ops...
+Basic("SET", 0x1)
+Basic("ADD", 0x2)
+Basic("SUB", 0x3)
+Basic("MUL", 0x4)
+Basic("DIV", 0x5)
+Basic("MOD", 0x6)
+Basic("SHL", 0x7)
+Basic("SHR", 0x8)
+Basic("AND", 0x9)
+Basic("BOR", 0xA)
+Basic("XOR", 0xB)
+Basic("IFE", 0xC)
+Basic("IFN", 0xD)
+Basic("IFG", 0xE)
+Basic("IFB", 0xF)
+
+# non-basic ops...
+NonBasic("JSR", 0x1)
+NonBasic("OUT", 0x2) # custom, write char to console
+
+# pseudo-ops...
+DW()
+DZ()
+
+class Raw(object):
+    def __init__(self, code):
+        self.code = code
+    def value(self):
+        return self.code
+    def emit(self, prog):
+        pass
+
+class Deref(object):
+    def __init__(self, raw):
+        self.raw = raw
+    def value(self):
+        return 0x08 + self.raw.value()
+    def emit(self, prog):
+        pass
+
+class Lit(object):
+    # value is either the actual int value, or a string label
+    # which can be emitted into the instruction stream and later
+    # rewritten...
+    def __init__(self, val, deref=False):
+        self.val = val
+        self.deref = deref
+    def value(self):
+        if self.deref: return 0x1e
+        if self.val < 0x20: return 0x20 + self.val 
+        return 0x1f
+    def emit(self, prog):
+        if self.val >= 0x20:
+            prog.append(self.val)
+
+class Offset(object):
+    # offset is either the actual int offset value, or a string label
+    # which can be emitted into the instruction stream and later
+    # rewritten...
+    def __init__(self, offset, reg):
+        self.offset = offset 
+        self.reg = reg
+    def value(self):
+        return 0x10 + self.reg.value()
+    def emit(self, prog):
+        prog.append(self.offset)
+
+REGS = {
+  "A": Raw(0x0),
+  "B": Raw(0x1),
+  "C": Raw(0x2),
+  "X": Raw(0x3),
+  "Y": Raw(0x4),
+  "Z": Raw(0x5),
+  "I": Raw(0x6),
+  "J": Raw(0x7)
+}
+
+OPERANDS = dict(REGS.items() + {
+  "POP": Raw(0x18),
+  "PEEK": Raw(0x19),
+  "PUSH": Raw(0x1a),
+  "SP": Raw(0x1b),
+  "PC": Raw(0x1c),
+  "O": Raw(0x1d)
+}.items())
+
+hex_re = re.compile('0x[0-9A-Fa-f]+')
+dec_re = re.compile('[0-9]+')
+
+def parse_lit(arg):
+    if hex_re.match(arg): return int(arg, 16)
+    if dec_re.match(arg): return int(arg, 10)
+    return arg
+
+def parse_pair(lit, reg):
+    lit = parse_lit(lit)
+    try: return Offset(lit, REGS[reg.upper()])
+    except KeyError: raise SyntaxError('bad register: ' + reg)
+
+def parse_arg(arg):
+    if len(arg) == 0: raise SyntaxError("empty arg")
+    if arg[0] == '[':
+        if arg[-1] != ']': raise SyntaxError("mismatched brackets")
+        arg = arg[1:-1].strip() # trim brackets
+        if '+' in arg: return parse_pair(*[x.strip() for x in arg.split('+')])
+        try: return Deref(OPERANDS[arg.upper()])
+        except KeyError: return Lit(parse_lit(arg), True)
+    if arg.upper() in OPERANDS: return OPERANDS[arg.upper()]
+    return Lit(parse_lit(arg))
+
+line_re = re.compile('(\s*([A-Za-z0-9_.]+):)?\s*([^;]+)?(;.*)?')
+
+def parse_line(line):
+    _, label, instr, _ = line_re.match(line).groups()
+    if label and label.upper() in OPERANDS:
+        raise SyntaxError("illegal label: " + label)
+    if instr:
+        op, _, args = instr.partition(' ')
+        args = [x.strip() for x in args.split(',')] if args else []
+        try: return label, OPCODES[op.upper()].make(args)
+        except KeyError: raise SyntaxError("invalid opcode: " + op)
+    return label, None
+
+
+def main():
+    if len(sys.argv) == 3:
+        input_filename = sys.argv[1]
+        output_filename = sys.argv[2]
+    else:
+        print "usage: masm <input.asm> <output.obj>"
+        sys.exit(1)
+
+    program = []
+    labels = {}
+    with open(input_filename) as f:
+        for lineno, line in enumerate(f):
+            try:
+                label, op = parse_line(line)
+                if label is not None: labels[label] = len(program)
+                if op is not None: op(program)
+            except SyntaxError as e: 
+                print ("Syntax error on line %d: %s" % (lineno+1, e.msg))
+
+    with open(output_filename, "wb") as f:
+        for word in program:
+            if isinstance(word, str):
+                try: word = labels[word]
+                except KeyError:
+                    print "unknown label: " + word
+                    sys.exit(1)
+            hi, lo = divmod(word, 0x100)
+            f.write(chr(hi))
+            f.write(chr(lo))
+
+if __name__ == '__main__':
+    main()

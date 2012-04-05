@@ -39,6 +39,7 @@ int init(dcpu *dcpu, const char *image) {
   dcpu->pc = 0;
   dcpu->o = 0;
   for (int i = 0; i < NREGS; i++) dcpu->reg[i] = 0;
+  for (int i = 0; i < RAM_WORDS; i++) dcpu->ram[i] = 0;
 
   FILE *img = fopen(image, "r");
   if (!img) {
@@ -96,7 +97,7 @@ static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr) {
   *addr = NULL;
 
   // literal. no address.
-  if (arg & 0x20) return arg;
+  if (arg & 0x20) return arg - 0x20;
 
   // special operator
   if (arg & 0x18) {
@@ -257,6 +258,8 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 #define OP_NB_RSV 0x00 // reserved
 #define OP_NB_JSR 0x01
 
+#define OP_NB_OUT 0x02 // custom
+
 static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
   uint8_t opcode = arg_a(instr);
   uint16_t a = decode_arg(dcpu, arg_b(instr), NULL);
@@ -265,6 +268,11 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
     case OP_NB_JSR:
       dcpu->ram[--dcpu->sp] = dcpu->pc;
       dcpu->pc = a;
+      break;
+
+    case OP_NB_OUT:
+      putchar(a);
+      fflush(stdout);
       break;
 
     default:
