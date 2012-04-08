@@ -29,6 +29,25 @@
 ;     +----------------------+
 ; 'ptr to ...' means a pointer directly to the codeword field of the definition.
 
+; the overall memory layout:
+;     +----------------------+
+;     | block buffers (2kb)  |<--- r0
+;     | return stack         |
+;     |        |             |
+;     |        v             |
+;     | text input buffer    |<--- tib,s0
+;     | data stack           |
+;     |        |             |
+;     |        v             |
+;     | pad (n words from h) |<--- pad
+;     |        ^             |
+;     |        |             |<--- h
+;     | user dictionary      |
+;     | system variables     |
+;     | core image           |
+;     +----------------------+
+
+
 define(next,
            `set x, [y]
             add y, 1
@@ -210,13 +229,30 @@ docol:      pushrsp(y)
             set [z], a
             next
 
-; quit is also the bootstrap word...
-            defword(quit, 0, quit)
-            dw print0, halt         ; for now, we just print '0' and halt
-
-print0:     dw print0_
-print0_:    out 0x30
+            defcode(branch, 0, branch)
+            add y, [y]
             next
 
-halt:       dw halt_
-halt_:      set pc, halt_
+; i/o
+            defcode(key, 0, key)
+            sub z, 1
+            kbd [z]
+            next
+
+            defcode(emit, 0, emit)
+            out [z]
+            add z, 1
+            next
+
+; quit is also the bootstrap word...
+            defword(quit, 0, quit)
+            dw prompt, key, emit, branch, -4
+
+prompt:     dw prompt_
+prompt_:    out 0x0a
+            out 0x6b
+            out 0x65
+            out 0x79
+            out 0x3a
+            out 0x20
+            next

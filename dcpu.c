@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define RAM_WORDS 0x10000
 #define NREGS     8 // A, B, C, X, Y, Z, I, J
@@ -28,10 +30,22 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // set stdin unbuffered for immediate keyboard input
+  struct termios old_tio, new_tio;
+  tcgetattr(STDIN_FILENO, &old_tio);
+  new_tio = old_tio;
+  new_tio.c_lflag &= (~ICANON & ~ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+
   dcpu dcpu;
   int result = init(&dcpu, argv[1]);
   if (result) return result;
-  return run(&dcpu);
+  result = run(&dcpu);
+
+  // restore the former settings
+  tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+
+  return result;
 }
 
 int init(dcpu *dcpu, const char *image) {
@@ -258,11 +272,14 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 #define OP_NB_RSV 0x00 // reserved
 #define OP_NB_JSR 0x01
 
-#define OP_NB_OUT 0x02 // custom
+// custom ops
+#define OP_NB_OUT 0x02 // ascii char to console
+#define OP_NB_KBD  0x03 // ascii char from keybaord, store in a
 
 static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
   uint8_t opcode = arg_a(instr);
-  uint16_t a = decode_arg(dcpu, arg_b(instr), NULL);
+  uint16_t *dest;
+  uint16_t a = decode_arg(dcpu, arg_b(instr), &dest);
 
   switch (opcode) {
     case OP_NB_JSR:
@@ -274,6 +291,11 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
       putchar(a);
       fflush(stdout);
       break;
+
+    case OP_NB_KBD: {
+      set(dest, getchar());
+      break;
+    }
 
     default:
       fprintf(stderr, "reserved instruction. abort.\n");

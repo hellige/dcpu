@@ -83,6 +83,7 @@ Basic("IFB", 0xF)
 # non-basic ops...
 NonBasic("JSR", 0x1)
 NonBasic("OUT", 0x2) # custom, write char to console
+NonBasic("KBD", 0x3) # custom, read char from keyboard
 
 # pseudo-ops...
 DW()
@@ -152,7 +153,7 @@ OPERANDS = dict(REGS.items() + {
 }.items())
 
 hex_re = re.compile('0x[0-9A-Fa-f]+')
-dec_re = re.compile('[0-9]+')
+dec_re = re.compile('-?[0-9]+')
 
 def parse_lit(arg):
     if hex_re.match(arg): return int(arg, 16)
@@ -216,7 +217,7 @@ def main():
                     print "unknown label: " + word
                     sys.exit(1)
             hi, lo = divmod(word, 0x100)
-            f.write(chr(hi))
+            f.write(chr(hi % 256))
             f.write(chr(lo))
 
 if __name__ == '__main__':
