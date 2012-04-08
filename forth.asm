@@ -244,8 +244,37 @@ docol:      pushrsp(y)
             add z, 1
             next
 
+            ; ( a u -- )
+            defcode(expect, 0, expect)
+            set a, [1+z]            ; dest addr in a
+            add [z], a              ; limit addr in [z]
+expect.1:   ife a, [z]              ; bail if at limit
+            set pc, expect.2
+            kbd [a]                 ; read
+            ife [a], 0x0a           ; bail if newline
+            set pc, expect.2
+            add a, 1
+            set pc, expect.1
+expect.2:   ; TODO set span
+            add z, 2                ; pop args
+            next
+
+            ; TODO handle non-printing chars
+            ; ( a u -- )
+            defcode(type, 0, type)
+            set a, [1+z]            ; src addr in a
+            add [z], a              ; limit addr in [z]
+type.1:     ifn a, [z]              ; bail if at limit
+            set pc, type.2
+            out [a]                 ; read
+            add a, 1
+            set pc, type.1
+type.2:     add z, 2                ; pop args
+            next
+
 ; quit is also the bootstrap word...
             defword(quit, 0, quit)
+            dw lit, 0x1000, lit, 10, expect, lit, 0x1000, lit, 10, type
             dw prompt, key, emit, branch, -4
 
 prompt:     dw prompt_

@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   struct termios old_tio, new_tio;
   tcgetattr(STDIN_FILENO, &old_tio);
   new_tio = old_tio;
-  new_tio.c_lflag &= (~ICANON & ~ECHO);
+  new_tio.c_lflag &= ~ICANON;
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
   dcpu dcpu;
