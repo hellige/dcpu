@@ -63,6 +63,20 @@ class DZ(object):
                 program.append((pair[0] << 8) + pair[1])
         return emit
 
+class DZW(object):
+    def __init__(self):
+        OPCODES["DZW"] = self
+    def make(self, args):
+        if len(args) != 1: raise SyntaxError("expected 1 arg")
+        arg = args[0]
+        if arg[0] != '"' or arg[-1] != '"':
+            raise SyntaxError("expected quoted ascii")
+        arg = arg[1:-1]
+        def emit(program):
+            for c in [ord(x) for x in arg]:
+                program.append(c)
+        return emit
+
 # basic ops...
 Basic("SET", 0x1)
 Basic("ADD", 0x2)
@@ -88,6 +102,7 @@ NonBasic("KBD", 0x3) # custom, read char from keyboard
 # pseudo-ops...
 DW()
 DZ()
+DZW()
 
 class Raw(object):
     def __init__(self, code):
@@ -176,10 +191,13 @@ def parse_arg(arg):
     if arg.upper() in OPERANDS: return OPERANDS[arg.upper()]
     return Lit(parse_lit(arg))
 
-line_re = re.compile('(\s*([A-Za-z0-9_.]+):)?\s*([^;]+)?(;.*)?')
+# this is a terrible hack, but it was so tempting...
+# note that we special-case ";" as 'not a comment' so that we can
+# easily define the forth word ';'...
+line_re = re.compile('(\s*([A-Za-z0-9_.]+):)?\s*((";"|[^;])+)?(;.*)?')
 
 def parse_line(line):
-    _, label, instr, _ = line_re.match(line).groups()
+    _, label, instr, _, _ = line_re.match(line).groups()
     if label and label.upper() in OPERANDS:
         raise SyntaxError("illegal label: " + label)
     if instr:
@@ -208,6 +226,7 @@ def main():
                 if op is not None: op(program)
             except SyntaxError as e: 
                 print ("Syntax error on line %d: %s" % (lineno+1, e.msg))
+                sys.exit(1)
 
     with open(output_filename, "wb") as f:
         for word in program:

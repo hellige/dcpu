@@ -1,5 +1,6 @@
 // TODO cycle counting
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <termios.h>
@@ -102,7 +103,8 @@ static inline uint8_t arg_b(uint16_t instr) {
 #define ARG_NXA  0x1e  // next word, deref
 #define ARG_NXL  0x1f  // next word, literal
 
-static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr) {
+static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr,
+    bool effects) {
   // in case caller doesn't need addr...
   uint16_t *tmp;
   if (addr == NULL) addr = &tmp;
@@ -117,13 +119,15 @@ static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr) {
   if (arg & 0x18) {
     switch (arg) {
       case ARG_POP:
-        *addr = &dcpu->ram[dcpu->sp++];
+        *addr = &dcpu->ram[dcpu->sp];
+        if (effects) dcpu->sp++;
         return **addr;
       case ARG_PEEK:
         *addr = &dcpu->ram[dcpu->sp];
         return **addr;
       case ARG_PUSH:
-        *addr = &dcpu->ram[--dcpu->sp];
+        if (effects) dcpu->sp--;
+        *addr = &dcpu->ram[dcpu->sp];
         return **addr;
       case ARG_SP:
         *addr = &dcpu->sp;
@@ -162,8 +166,8 @@ static inline void set(uint16_t *dest, uint16_t val) {
 // decode (but do not execute) next instruction...
 static inline void skip(dcpu *dcpu) {
   uint16_t instr = next(dcpu);
-  decode_arg(dcpu, arg_a(instr), NULL);
-  decode_arg(dcpu, arg_b(instr), NULL);
+  decode_arg(dcpu, arg_a(instr), NULL, false);
+  decode_arg(dcpu, arg_b(instr), NULL, false);
 }
 
 #define OP_NON 0x0
@@ -185,8 +189,8 @@ static inline void skip(dcpu *dcpu) {
 
 static void exec_basic(dcpu *dcpu, uint16_t instr) {
   uint16_t *dest;
-  uint16_t a = decode_arg(dcpu, arg_a(instr), &dest);
-  uint16_t b = decode_arg(dcpu, arg_b(instr), NULL);
+  uint16_t a = decode_arg(dcpu, arg_a(instr), &dest, true);
+  uint16_t b = decode_arg(dcpu, arg_b(instr), NULL, true);
 
   switch (opcode(instr)) {
 
@@ -279,7 +283,7 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
   uint8_t opcode = arg_a(instr);
   uint16_t *dest;
-  uint16_t a = decode_arg(dcpu, arg_b(instr), &dest);
+  uint16_t a = decode_arg(dcpu, arg_b(instr), &dest, true);
 
   switch (opcode) {
     case OP_NB_JSR:
