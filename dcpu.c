@@ -82,7 +82,7 @@ static inline uint16_t next(dcpu *dcpu) {
 }
 
 static inline uint8_t opcode(uint16_t instr) {
-  return instr & 0x7;
+  return instr & 0xf;
 }
 
 static inline uint8_t arg_a(uint16_t instr) {

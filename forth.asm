@@ -244,19 +244,21 @@ docol:      pushrsp(y)
             add z, 1
             next
 
-            ; ( a u -- )
-            defcode(expect, 0, expect)
+            ; TODO handle backspace
+            ; ( a u1 -- u2 )
+            defcode(accept, 0, accept)
             set a, [1+z]            ; dest addr in a
             add [z], a              ; limit addr in [z]
-expect.1:   ife a, [z]              ; bail if at limit
-            set pc, expect.2
+accept.1:   ife a, [z]              ; bail if at limit
+            set pc, accept.2
             kbd [a]                 ; read
             ife [a], 0x0a           ; bail if newline
-            set pc, expect.2
+            set pc, accept.2
             add a, 1
-            set pc, expect.1
-expect.2:   ; TODO set span
-            add z, 2                ; pop args
+            set pc, accept.1
+accept.2:   add z, 1                ; pop 1 arg
+            sub a, [z]              ; compute length
+            set [z], a              ; push it
             next
 
             ; TODO handle non-printing chars
@@ -264,17 +266,32 @@ expect.2:   ; TODO set span
             defcode(type, 0, type)
             set a, [1+z]            ; src addr in a
             add [z], a              ; limit addr in [z]
-type.1:     ifn a, [z]              ; bail if at limit
+type.1:     ife a, [z]              ; bail if at limit
             set pc, type.2
-            out [a]                 ; read
+            out [a]                 ; write
             add a, 1
             set pc, type.1
 type.2:     add z, 2                ; pop args
             next
 
+
+; : refill  ( -- ? )  tib 80 accept 0 >in ! ;
+; source ( -- a len )
+; parse-word ( "<spaces>name" -- a u )
+; parse ( c "ccc<char>" -- a u )
+; find ( a -- a 0  |  xt 1  |  xt -1 )
+; >number ( ud1 a1 u1 -- ud2 a2 u2 )
+; ] ( -- )
+; [ ( -- )
+; interpret
+
+; \
+; (
+
 ; quit is also the bootstrap word...
             defword(quit, 0, quit)
-            dw lit, 0x1000, lit, 10, expect, lit, 0x1000, lit, 10, type
+            dw lit, 0x1000, lit, 10, accept
+            dw lit, 0x1000, swap, type
             dw prompt, key, emit, branch, -4
 
 prompt:     dw prompt_
