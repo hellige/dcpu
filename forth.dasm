@@ -19,7 +19,7 @@
 ; in the case of primitives, codeword simply points to definition, which is
 ; machine code. (it could be anywhere, but will generally follow immediately
 ; after codeword.) in the case of forth words, we have:
-;     +----------------------+         
+;     +----------------------+
 ;     | 16 link to prev word |
 ;     | 16 flags/name length |          DOCOL
 ;     | 16 ... name          |         +---------------------+

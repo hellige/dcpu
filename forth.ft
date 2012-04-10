@@ -10,19 +10,46 @@
 : false   0 ;
 : not   0= ;
 
+\ TODO should have error handling where we have 'find drop'
 \ find a word in the dictionary
 : '  ( "word" -- xt )  parse-word find drop ;
 \ same thing, immediate version
-: [']  ( "word" -- xt )  [ ' lit dup , , ] , parse-word find drop , ; immediate
-\ compile a literal from the stack
-: literal   ['] lit , , ; immediate
+: [']  ( "word" -- ) ( -- xt )  [ ' lit dup , , ] , ' , ; immediate
 
-\ compile an immediate word
-: [compile]   parse-word find drop , ; immediate
+\ i provide compile and [compile] rather than postpone. i find the extra
+\ 'intelligence' of postpone confusing and irritating.
+\ compile an immediate word into the *current* word
+: [compile]   ' , ; immediate
+\ compile a non-immediate word *into the word being defined*
+: compile   [compile] ['] ['] , , ; immediate
+
+\ compile a literal from the stack
+: literal   compile lit , ; immediate
+
+\ here's an example of compile and [compile], this produces the same
+\ definition of ; as we have in forth.asm.
+\ : my;  compile exit latest @ hidden [compile] [ ; immediate
+\ : test 65 emit my;
+\ test test test
 
 \ : recurse   latest @ >cfa , ;
 
 \ if-then-else
-: if   ['] 0branch , here 0 , ; immediate
+: if   compile 0branch here 0 , ; immediate
 : then   dup here swap - swap ! ; immediate
-: else   ['] branch , here 0 , swap dup here swap - swap ! ; immediate
+: else   compile branch here 0 , swap dup here swap - swap ! ; immediate
+
+\ unless is just bizarro if
+: unless   compile not [compile] if ; immediate
+
+\ begin LOOP COND until (until non-zero)
+: begin   here ; immediate
+: until   compile 0branch here - , ; immediate
+
+\ begin LOOP again (infinite loop)
+: again   compile branch here - , ; immediate
+
+\ begin COND while LOOP repeat
+: while   compile 0branch here 0 , ; immediate
+: repeat   compile branch swap here - , dup here swap - swap ! ; immediate
+
