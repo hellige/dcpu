@@ -51,6 +51,8 @@
 ; this is much easier in the absence of byte addressing, but it's also terribly
 ; wasteful. fix.
 
+define(s0_, 0xf000)
+
 define(next,
            `set x, [y]
             add y, 1
@@ -105,7 +107,7 @@ define(defconst, `
 
 ; boot...
             set sp, 0               ; return stack grows down from 0xffff
-            set z, 0xf000           ; data stack grows down fom 0xefff
+            set z, s0_              ; data stack grows down from here
             set y, boot             ; boot up
             next
 
@@ -119,13 +121,13 @@ docol:      pushrsp(y)
 
 ; built-in constants and variables...
 ; 'latest' and 'h' are defined at the very end, so they can be properly initialized...
-            defconst(tib, tib, 0xf000)
+            defconst(tib, tib, s0_)
             defvar(>in, inptr, 0)
             defvar(srcptr, srcptr, 0)
             defvar(srclen, srclen, 0)
             defvar(state, state, 0)
             defvar(r0, r0, 0)
-            defvar(s0, s0, 0xf000)
+            defvar(s0, s0, s0_)
             ; `defvar'(base, base, 10)   TODO
 
 ; now we start right in with a bunch of primitive words...
@@ -191,8 +193,15 @@ docol:      pushrsp(y)
             set [z], [1+z]
             next
 
-; TODO basic arithmetic
+; basic arithmetic
+            defcode(-, 0, minus)
+            sub [1+z], [z]
+            add z, 1
+            next
 
+            ; TODO more...
+
+; comparisons
             defcode(0=, 0, zequ)
             ife [z], 0
             set pc, zequ.1
@@ -201,7 +210,8 @@ docol:      pushrsp(y)
 zequ.1:     set [z], 0xffff
             next
 
-; TODO comparisons
+            ; TODO more...
+
 ; TODO logic
 
 ; internals
@@ -246,6 +256,7 @@ zequ.1:     set [z], 0xffff
             set b, [1+z]            ; dest in b
             set c, b                ; limit in c
             add c, [z]
+            add z, 3                ; pop args
 move.2:     ife b, c                ; done?
             set pc, move.1
             set [b], [a]            ; assign
@@ -366,6 +377,29 @@ type.2:     add z, 2                ; pop args
 
 
 ; parsing, compiling
+            ; TODO byte addressing!
+            ; ( char "ccc<char>" -- a u )
+            defcode(parse, 0, parse)
+            set i, [z]              ; load terminator
+            sub z, 1                ; we'll have one more result than arg
+            set a, [var_srcptr]     ; load srcptr
+            set c, a
+            add c, [var_srclen]     ; store limit in c
+            add a, [var_inptr]      ; add >in, a is current parse location
+parse.2:    set [1+z], a            ; push start of word
+parse.3:    ife a, c
+            set pc, parse.end       ; input exhausted, bail
+            ife [a], i              ; check for terminator
+            set pc, parse.end2      ; if found, done!
+            add a, 1
+            set pc, parse.3
+parse.end2: add a, 1                ; include terminator
+parse.end:  set [z], a              ; push parsed length
+            sub [z], [1+z]
+            set [var_inptr], a      ; store `next' location back to >in
+            sub [var_inptr], [var_srcptr]
+            next
+
             ; TODO other space chars!
             ; TODO byte addressing!
             ; ( "<spaces>name" -- a u )
@@ -451,8 +485,9 @@ numb_.end:  ife pop, 0              ; if positive, we're done
 
             ; ( addr -- )  toggles hidden given dict entry
             defcode(hidden, 0, hidden)
-            add [z], 1              ; find flags/len
-            xor [z], f_hidden       ; toggle
+            set a, [z]
+            add a, 1                ; find flags/len
+            xor [a], f_hidden       ; toggle
             add z, 1                ; pop
             next
 
@@ -475,20 +510,67 @@ name_comma: dw link
             dw 0x2c                 ; comma
 comma:      dw code_comma
 code_comma: ; code follows...
-            set a, [var_h]
-            set [a], [z]            ; write stack top to *h
+            set j, [z]              ; set up the call
+            jsr comma_
             add z, 1                ; pop stack
-            add [var_h], 1          ; increment h
             next
+
+            ; factored out so we can also call it natively.
+            ; expects word to compile in j
+comma_:     set b, [var_h]          ; fetch `next' dest
+            set [b], j              ; write the value
+            add [var_h], 1          ; increment h
+            set pc, pop
 
             defcode([, f_immed, lbrac)
             set [var_state], 0      ; done compiling
             next
 
-            defcode(], 0, rbrac)
-            set [var_state], 1      ; begin compiling
-            ; TODO rbrac should actually do the compile
-            next
+            defword(], 0, rbrac)
+            dw lit, 1, state, store ; begin compiling
+            dw parseword
+            dw dup, zbranch, 12     ; done?
+            dw compile_             ; call the primitive
+            dw succ, fetch
+            dw zbranch, 9           ; error, nothing to drop, just bail
+            dw state, fetch         ; must retest state flag, an immediate word
+            dw zbranch, 4           ;   can change it...
+            dw branch, -14
+            dw twodrop
+            dw exit
+            ; TODO error handling! really we should abort here or whatever...
+            dw lit, 0x65, emit      ; but for now, we can at least spew an 'e'
+            dw exit
+
+            ; this can't return anything, since execution will cause us to
+            ; eventually `next' our way back into forth code. we could make
+            ; it work by fiddling around with the forth ip, but it doesn't seem
+            ; worth it... we use a var to communicate errors...
+            ; ( a u -- )
+compile_:   dw compile__
+compile__:  set a, [z]              ; load length
+            set b, [1+z]            ; load ptr
+            add z, 2
+            set [var_succ], 0xffff
+            jsr find_               ; dictionary search, results in i, j
+            ife i, 0
+            set pc, compile_.1      ; not in dict...
+            ife i, 1
+            set pc, compile_.4      ; not an immediate word.
+            set x, j                ; immediate word. update the codeword pointer
+            set pc, [x]             ; and execute it...
+compile_.4: jsr comma_              ; non-immediate. compile the value in j.
+            set pc, compile_.3
+compile_.1: jsr number_
+            ife a, 0
+            set pc, compile_.2
+            set [var_succ], 0x0     ; not a number. bail.
+            set pc, compile_.3
+compile_.2: set j, lit
+            jsr comma_              ; compile ptr to 'lit'
+            set j, i
+            jsr comma_              ; compile the numeric value in j
+compile_.3: next
 
             defword(:, 0, colon)
             dw create               ; make the dict entry
@@ -505,7 +587,14 @@ code_comma: ; code follows...
 
 
 ; dictionary
-            ; find ( a -- a 0  |  xt 1  |  xt -1 ) TODO wrap!
+            ; ( a u -- 0 0  |  xt 1  |  xt -1 )
+            defcode(find, 0, find)
+            set a, [z]
+            set b, [1+z]
+            jsr find_
+            set [1+z], j
+            set [z], i
+            next
 
             ; find word in dictionary. word len in a, ptr in b.
             ; returns xt in j, i = 1, -1, 0 for found, immediate, and not found
@@ -514,6 +603,8 @@ find_:      set c, [var_latest]     ; start with most recent word
 find_.1:    ife c, 0                ; end of dict?
             set pc, find_.fail
             set j, [1+c]            ; load flags/len
+            ifb j, f_hidden         ; ignore if hidden
+            set pc, find_.2
             and j, f_lenmask        ; mask off flags
             ifn j, a                ; compare length
             set pc, find_.2
@@ -537,7 +628,9 @@ find_.2:    set c, [c]              ; `next' word in dict
 
 find_.succ: set i, pop              ; pop limit, dest doesn't matter
             ; j already points to the xt...
-            set i, 1                ; TODO check immediate!
+            set i, 1                ; found
+            ifb [1+c], f_immed      ; immediate?
+            set i, -1               ; if so, mark it
             set pc, pop
 
 find_.fail: set i, 0
@@ -586,7 +679,7 @@ interp_.2:  sub z, 1                ; got a number. push it.
 interp_.3:  next
 
 ; quit is also the bootstrap word...
-            ; TODO check refill result!
+            ; TODO check refill result (although it can't currently fail)
             defword(quit, 0, quit)
             dw r0, rspstore         ; empty return stack
             dw refill, drop         ; refill input buffer
@@ -617,11 +710,5 @@ prompt_:    out 0x20
 ; define latest last, so that it can start out pointing to itself.
             defvar(latest, latest, name_latest)
 ; label for initial value for h
-h_init:
-
-
-
-; parse ( char "ccc<char>" -- a u )
-; \
-; (
+h_init:     ; nothing here!
 

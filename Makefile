@@ -7,8 +7,10 @@ forth.img: forth.asm masm
 	m4 forth.asm > forth.s
 	./masm forth.s $@
 
+run: forth.ft all
+	cat $< - | ./dcpu forth.img
 clean:
 	-rm -f dcpu
 	-rm -f forth.s forth.img
 
-.PHONY: clean all
+.PHONY: clean all run

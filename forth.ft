@@ -1,0 +1,28 @@
+: \   1 parse 2drop ;  immediate  \ now we can use line comments
+: (   41 parse 2drop ; immediate  ( and now we can use ( comments )
+
+: '\n'   10 ;
+: bl   32 ;
+
+: space   bl emit ;
+
+: true   -1 ;
+: false   0 ;
+: not   0= ;
+
+\ find a word in the dictionary
+: '  ( "word" -- xt )  parse-word find drop ;
+\ same thing, immediate version
+: [']  ( "word" -- xt )  [ ' lit dup , , ] , parse-word find drop , ; immediate
+\ compile a literal from the stack
+: literal   ['] lit , , ; immediate
+
+\ compile an immediate word
+: [compile]   parse-word find drop , ; immediate
+
+\ : recurse   latest @ >cfa , ;
+
+\ if-then-else
+: if   ['] 0branch , here 0 , ; immediate
+: then   dup here swap - swap ! ; immediate
+: else   ['] branch , here 0 , swap dup here swap - swap ! ; immediate

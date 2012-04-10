@@ -129,10 +129,10 @@ class Lit(object):
         self.deref = deref
     def value(self):
         if self.deref: return 0x1e
-        if self.val < 0x20: return 0x20 + self.val 
+        if 0 <= self.val < 0x20: return 0x20 + self.val
         return 0x1f
     def emit(self, prog):
-        if self.val >= 0x20:
+        if not (0 <= self.val < 0x20):
             prog.append(self.val)
 
 class Offset(object):
