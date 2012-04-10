@@ -1,10 +1,16 @@
 // TODO cycle counting
+// TODO debugger
+// TODO make kbd non-blocking
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#define DCPU_VERSION "1.1-mh"
 
 #define RAM_WORDS 0x10000
 #define NREGS     8 // A, B, C, X, Y, Z, I, J
@@ -38,9 +44,14 @@ int main(int argc, char **argv) {
   new_tio.c_lflag &= ~ICANON;
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
+  puts("\nwelcome to dcpu-16, version " DCPU_VERSION ".");
+  puts("hit ctrl-g to break.");
+
   dcpu dcpu;
   int result = init(&dcpu, argv[1]);
   if (result) return result;
+
+  puts("booting...\n");
   result = run(&dcpu);
 
   // restore the former settings
@@ -58,17 +69,17 @@ int init(dcpu *dcpu, const char *image) {
 
   FILE *img = fopen(image, "r");
   if (!img) {
-    perror("error reading image");
+    fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
     return -1;
   }
 
   int img_size = fread(dcpu->ram, 2, RAM_WORDS, img);
   if (ferror(img)) {
-    perror("error reading image");
+    fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
     return -1;
   }
 
-  printf("loaded image from %s: %d words\n", image, img_size);
+  printf("loaded image from %s: 0x%05x words\n", image, img_size);
 
   // swap byte order...
   for (int i = 0; i < RAM_WORDS; i++)

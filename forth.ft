@@ -32,7 +32,7 @@
 \ : test 65 emit my;
 \ test test test
 
-\ : recurse   latest @ >cfa , ;
+: recurse   latest @ >cfa , ; immediate
 
 \ if-then-else
 : if   compile 0branch here 0 , ; immediate
@@ -53,3 +53,19 @@
 : while   compile 0branch here 0 , ; immediate
 : repeat   compile branch swap here - , dup here swap - swap ! ; immediate
 
+\ char grabs first char of next word, but it needs to be state-smart...
+: char   parse-word drop @
+         state @ if [compile] literal then ; immediate
+
+\ standard base-changing words
+: decimal  ( -- )  10 base ! ;
+: hex  ( -- )  16 base ! ;
+
+\ printing...
+: u.  ( u -- )
+    base @ /mod
+    ?dup if recurse then
+    dup 10 < if char 0 else 10 - char a then + emit ;
+
+: .s  ( -- )
+    dsp@ begin dup s0 @ < while dup @ u. space 1+ repeat drop ;

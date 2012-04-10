@@ -128,7 +128,7 @@ docol:      pushrsp(y)
             defvar(state, state, 0)
             defvar(r0, r0, 0)
             defvar(s0, s0, s0_)
-            ; `defvar'(base, base, 10)   TODO
+            defvar(base, base, 10)
 
 ; now we start right in with a bunch of primitive words...
 
@@ -187,21 +187,45 @@ docol:      pushrsp(y)
             next
 
             defcode(?dup, 0, qdup)
-            ifn [z], 0
+            ife [z], 0
             add pc, 2
             sub z, 1
             set [z], [1+z]
             next
 
 ; basic arithmetic
+            defcode(+, 0, plus)
+            add [1+z], [z]
+            add z, 1
+            next
+
             defcode(-, 0, minus)
             sub [1+z], [z]
             add z, 1
             next
 
+            defcode(/mod, 0, divmod)
+            set a, [z]
+            set [z], [1+z]
+            mod [1+z], a
+            div [z], a
+            next
+
+            defcode(1+, 0, oneplus)
+            add [z], 1
+            next
+
             ; TODO more...
 
 ; comparisons
+            defcode(<, 0, less)
+            set a, 0
+            ifg [z], [1+z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
             defcode(0=, 0, zequ)
             ife [z], 0
             set pc, zequ.1
@@ -214,7 +238,7 @@ zequ.1:     set [z], 0xffff
 
 ; TODO logic
 
-; internals
+; internals, execution
             defcode(exit, 0, exit)
             poprsp(y)
             next
@@ -225,6 +249,12 @@ zequ.1:     set [z], 0xffff
             set [z], [y]
             add y, 1
             next
+
+            defcode(execute, 0, execute)
+            set x, [z]              ; get xt from stack
+            add z, 1                ; and pop it
+            set pc, [x]             ; execute
+            ; nb: no `next'!
 
 ; memory
             defcode(!, 0, store)
@@ -363,7 +393,7 @@ type.2:     add z, 2                ; pop args
             defword(refill, 0, refill)
             dw tib
             dw dup, srcptr, store   ; set srcptr to tib
-            dw lit, 80, accept      ; read line into tib
+            dw lit, 256, accept     ; read line into tib
             dw srclen, store        ; set srclen to result
             dw lit, 0, inptr, store ; set >in to 0
             dw lit, 0xffff          ; push true
@@ -638,12 +668,25 @@ find_.fail: set i, 0
             set pc, pop
 
 
+            ; ( addr -- xt )  addr points to start of dict entry
+            defcode(>cfa, 0, tocfa)
+            add [z], 1              ; advance to len field
+            set a, [z]              ; load len field addr
+            set a, [a]              ; load actual len field
+            and a, f_lenmask        ; mask off the flags
+            add [z], 1              ; advance to start of name
+            add [z], a              ; advance to code ptr
+            next
+
 ; the outer interpreter
             defvar(succ, succ, 0)
 
             ; ( -- ? )
             defword(interpret, 0, interpret)
-            dw parseword
+            dw state, fetch         ; if we're currently in compile mode...
+            dw zbranch, 2
+            dw rbrac           		; resume compiling, until finished
+            dw parseword            ; otherwise (or and then) interpret...
             dw dup, zbranch, 8      ; done?
             dw interpret_           ; call the primitive
             dw succ, fetch          ; check for error
