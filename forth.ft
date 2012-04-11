@@ -68,7 +68,9 @@
     dup 10 < if char 0 else 10 - char a then + emit ;
 
 : .s  ( -- )
-    dsp@ begin dup s0 @ < while dup @ u. space 1+ repeat drop ;
+    dsp@ s0 @ swap - char < emit u. char > emit space
+    dsp@ s0 @ begin 1- 2dup swap >= while dup @ u. space repeat drop ;
+    \ dsp@ begin dup s0 @ < while dup @ u. space 1+ repeat drop ;
 
 \ abort is just a stack-clearing quit
 : abort   s0 @ dsp! quit ;

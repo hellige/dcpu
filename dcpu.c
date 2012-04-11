@@ -1,6 +1,5 @@
 // TODO cycle counting
 // TODO debugger
-// TODO make kbd non-blocking
 
 #include <errno.h>
 #include <stdbool.h>
@@ -30,6 +29,8 @@ typedef struct dcpu_t {
   uint16_t ram[RAM_WORDS];
 } dcpu;
 
+static struct termios old_tio;
+
 static int run(dcpu *dcpu);
 static int init(dcpu *dcpu, const char *image);
 
@@ -40,10 +41,13 @@ int main(int argc, char **argv) {
   }
 
   // set stdin unbuffered for immediate keyboard input
-  struct termios old_tio, new_tio;
+  struct termios new_tio;
   tcgetattr(STDIN_FILENO, &old_tio);
   new_tio = old_tio;
   new_tio.c_lflag &= ~ICANON;
+  new_tio.c_lflag &= ~ECHO;
+  new_tio.c_cc[VTIME] = 0;
+  new_tio.c_cc[VMIN] = 0;
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
   puts("\nwelcome to dcpu-16, version " DCPU_VERSION ".");
@@ -334,15 +338,21 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
       fflush(stdout);
       break;
 
-    case OP_NB_KBD:
-      set(dest, getchar());
+    case OP_NB_KBD: {
+      // will set dest to -1 if no key is available...
+      int c = getchar();
+      // since we're non-canon, we need to check for ctrl-d ourselves...
+      if (c == 0x04) exit(0);
+      set(dest, c);
       break;
+    }
 
     case OP_NB_IMG:
       coredump(dcpu, a);
       break;
 
     case OP_NB_DIE:
+      puts("\ndcpu-16 halted.");
       exit(a); // TODO a bit abrupt...
 
     default:

@@ -8,11 +8,8 @@ boot.img: forth.dasm masm
 	./masm forth.s $@
 
 forth.img: forth.ft boot.img dcpu
-	cat forth.ft | ./dcpu boot.img
+	cat forth.ft | ./dcpu boot.img > /dev/null
 	mv core.img $@
-
-run: all
-	./dcpu forth.img
 
 clean:
 	-rm -f dcpu
