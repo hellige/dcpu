@@ -26,6 +26,12 @@
 
 ; this is an implementation of forth for the dcpu-16 augmented with a few
 ; io instructions.
+;
+; the core dictionary layout and assembler routines are influenced by
+; jonesforth:
+;   http://rwmj.wordpress.com/2010/08/07/jonesforth-git-repository/
+; although jonesforth has a number of quirks (and so does this one) and
+; things diverge pretty quickly.
 
 ; m4 is a pretty broke-ass way to get macros, but i want to invest as little
 ; as possible in the dcpu assembler. i'd rather bootstrap everything from
@@ -840,3 +846,4 @@ prompt_:    out 0x20
 ; label for initial value for h
 h_init:     ; nothing here!
 
+; the fun continues in forth.ft...

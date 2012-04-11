@@ -5,6 +5,9 @@ the Forth programming language for notch's DCPU-16.
 
 See: http://0x10c.com/doc/dcpu-16.txt
 
+The emulator is written in C, the assembler (masm) is Python, and the real fun
+starts in forth.dasm and forth.ft.
+
 In order to get up and running, I've augmented the DCPU instruction set with 
 four new instructions (all in non-basic format):
   kbd: check for a keypress, store the ascii code in the 'a' argument
@@ -15,7 +18,7 @@ four new instructions (all in non-basic format):
   die: exit the emulator
   dbg: enter the emulator debugger
 The latter two instructions are only used in special cases and are easily 
-avoided. 'img' is needed only to bootstrap the forth image.
+avoided. img is needed only to bootstrap the forth image.
 
 The first two, however, are required in order to both bootstrap and run
 the provided forth image, so forth.img is not portable to other emulators
