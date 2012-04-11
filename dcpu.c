@@ -6,11 +6,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
 #define DCPU_VERSION "1.1-mh"
+#define DCPU_MODS    "+out +kbd +img +die"
 
 #define RAM_WORDS 0x10000
 #define NREGS     8 // A, B, C, X, Y, Z, I, J
@@ -45,13 +47,14 @@ int main(int argc, char **argv) {
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
   puts("\nwelcome to dcpu-16, version " DCPU_VERSION ".");
-  puts("hit ctrl-g to break.");
+  puts("mods: " DCPU_MODS ".");
 
   dcpu dcpu;
   int result = init(&dcpu, argv[1]);
   if (result) return result;
 
   puts("booting...\n");
+  fflush(stdout);
   result = run(&dcpu);
 
   // restore the former settings
@@ -87,6 +90,28 @@ int init(dcpu *dcpu, const char *image) {
 
   fclose(img);
   return 0;
+}
+
+// note limit is 32-bit, so that we can distinguish 0 from RAM_WORDS
+void coredump(dcpu *dcpu, uint32_t limit) {
+  char *image = "core.img";
+  FILE *img = fopen(image, "w");
+  if (!img) {
+    fprintf(stderr, "error opening image '%s': %s\n", image, strerror(errno));
+    return;
+  }
+
+  if (limit == 0) limit = RAM_WORDS;
+
+  for (uint32_t i = 0; i < limit; i++) {
+    if (fputc(dcpu->ram[i] >> 8, img) == EOF
+        || fputc(dcpu->ram[i] & 0xff, img) == EOF) {
+      fprintf(stderr, "error writing to image '%s': %s\n", image, strerror(errno));
+      return;
+    }
+  }
+
+  fclose(img);
 }
 
 static inline uint16_t next(dcpu *dcpu) {
@@ -290,6 +315,8 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 // custom ops
 #define OP_NB_OUT 0x02 // ascii char to console
 #define OP_NB_KBD  0x03 // ascii char from keybaord, store in a
+#define OP_NB_IMG  0x04 // save core image to core.img, up to address in a
+#define OP_NB_DIE  0x05 // exit emulator, exit code in a
 
 static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
   uint8_t opcode = arg_a(instr);
@@ -307,10 +334,16 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
       fflush(stdout);
       break;
 
-    case OP_NB_KBD: {
+    case OP_NB_KBD:
       set(dest, getchar());
       break;
-    }
+
+    case OP_NB_IMG:
+      coredump(dcpu, a);
+      break;
+
+    case OP_NB_DIE:
+      exit(a); // TODO a bit abrupt...
 
     default:
       fprintf(stderr, "reserved instruction. abort.\n");

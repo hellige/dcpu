@@ -69,3 +69,16 @@
 
 : .s  ( -- )
     dsp@ begin dup s0 @ < while dup @ u. space 1+ repeat drop ;
+
+\ abort is just a stack-clearing quit
+: abort   s0 @ dsp! quit ;
+
+
+
+\ the real boot word
+: boot char ! emit cr quit ;
+' boot boot-word !
+
+\ save the whole dictionary as a bootable image
+here dump-core
+0 bye

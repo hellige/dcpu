@@ -3,14 +3,20 @@ all: dcpu forth.img
 dcpu: dcpu.c
 	gcc -ggdb3 -std=gnu99 -Wall -O0 -o dcpu dcpu.c
 
-forth.img: forth.dasm masm
+boot.img: forth.dasm masm
 	m4 $< > forth.s
 	./masm forth.s $@
 
-run: forth.ft all
-	cat $< - | ./dcpu forth.img
+forth.img: forth.ft boot.img dcpu
+	cat forth.ft | ./dcpu boot.img
+	mv core.img $@
+
+run: all
+	./dcpu forth.img
+
 clean:
 	-rm -f dcpu
+	-rm -f boot.img
 	-rm -f forth.s forth.img
 
 .PHONY: clean all run

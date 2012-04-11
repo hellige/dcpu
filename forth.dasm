@@ -29,7 +29,11 @@
 ;     +----------------------+
 ; 'ptr to ...' means a pointer directly to the codeword field of the definition.
 
-; the overall memory layout:
+; the overall memory layout. this isn't yet fully implemented, but an
+; important point is that we want to be sure that everything important
+; is below h, so that we can simply dump a bootable image by including
+; only everything from 0 to h. we have to be just a bit careful about
+; variables, but it's pretty easy to get it right.
 ;     +----------------------+
 ;     | block buffers (2kb)  |<--- r0
 ;     | return stack         |
@@ -108,10 +112,8 @@ define(defconst, `
 ; boot...
             set sp, 0               ; return stack grows down from 0xffff
             set z, s0_              ; data stack grows down from here
-            set y, boot             ; boot up
+            set y, var_bootword     ; boot up
             next
-
-boot:       dw quit
 
 ; interpreter for forth words
 docol:      pushrsp(y)
@@ -345,6 +347,14 @@ zbranch.1:  add z, 1                ; pop
             next
 
 ; i/o
+            defcode(dump-core, 0, dumpcore)
+            img [z]                 ; dump. expects limit address on stack
+            add z, 1                ; pop arg
+            next
+
+            defcode(bye, 0, bye)
+            die [z]                 ; make vm exit. exit code on stack.
+
             defcode(key, 0, key)
             sub z, 1
             kbd [z]
@@ -685,7 +695,7 @@ find_.fail: set i, 0
             defword(interpret, 0, interpret)
             dw state, fetch         ; if we're currently in compile mode...
             dw zbranch, 2
-            dw rbrac           		; resume compiling, until finished
+            dw rbrac                ; resume compiling, until finished
             dw parseword            ; otherwise (or and then) interpret...
             dw dup, zbranch, 8      ; done?
             dw interpret_           ; call the primitive
@@ -724,7 +734,7 @@ interp_.3:  next
 ; quit is also the bootstrap word...
             ; TODO check refill result (although it can't currently fail)
             defword(quit, 0, quit)
-            dw r0, rspstore         ; empty return stack
+            dw r0, fetch, rspstore  ; empty return stack
             dw refill, drop         ; refill input buffer
             dw interpret, zequ      ; run
             dw zbranch, 2           ; check result
@@ -748,6 +758,19 @@ prompt_:    out 0x20
             out 0x0a
             next
 
+; boot is just like quit, but without the prompts...
+; we just use this to achieve a quiet bootup while executing forth.ft.
+            defword(boot, 0, boot)
+            dw r0, fetch, rspstore  ; empty return stack
+            dw refill, drop         ; refill input buffer
+            dw interpret, zequ      ; run
+            dw zbranch, 2           ; check result
+            dw err
+            dw branch, -8           ; again
+
+; we indirect the actual boot through a variable, so that we can reset
+; the boot word before saving the final image.
+            defvar(boot-word, bootword, boot)
 ; define h down here, so it's clear where it's coming from...
             defvar(h, h, h_init)
 ; define latest last, so that it can start out pointing to itself.
