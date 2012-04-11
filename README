@@ -27,7 +27,7 @@ see the file disassemble.c for license and copyright info.
 To build, just run:
   make
 To run the forth.img:
-  ./forth.
+  ./forth
 Other images can be run with:
-  ./dcpu blah.img.
+  ./dcpu blah.img
 
