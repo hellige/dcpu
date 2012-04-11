@@ -11,7 +11,7 @@ four new instructions (all in non-basic format):
   out: emit the ascii code in the 'a' argument to the terminal
   img: dump ram to the file core.img, from address 0x0000 to (but not
        including) the address in the 'a' argument. if 'a' is 0, dump the
-	   entire heap (0x0000 to 0x10000)
+       entire heap (0x0000 to 0x10000)
   die: exit the emulator
   dbg: enter the emulator debugger
 The latter two instructions are only used in special cases and are easily 
