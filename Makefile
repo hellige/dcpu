@@ -1,7 +1,7 @@
 all: dcpu forth.img
 
 dcpu: dcpu.c
-	gcc -ggdb3 -std=gnu99 -Wall -O0 -o dcpu dcpu.c
+	gcc -ggdb3 -std=gnu99 -Wall -O2 -o dcpu dcpu.c
 
 boot.img: forth.dasm masm
 	m4 $< > forth.s

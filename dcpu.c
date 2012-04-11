@@ -318,9 +318,9 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 
 // custom ops
 #define OP_NB_OUT 0x02 // ascii char to console
-#define OP_NB_KBD  0x03 // ascii char from keybaord, store in a
-#define OP_NB_IMG  0x04 // save core image to core.img, up to address in a
-#define OP_NB_DIE  0x05 // exit emulator, exit code in a
+#define OP_NB_KBD 0x03 // ascii char from keybaord, store in a
+#define OP_NB_IMG 0x04 // save core image to core.img, up to address in a
+#define OP_NB_DIE 0x05 // exit emulator, exit code in a
 
 static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
   uint8_t opcode = arg_a(instr);
