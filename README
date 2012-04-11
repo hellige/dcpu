@@ -21,7 +21,7 @@ The first two, however, are required in order to both bootstrap and run
 the provided forth image, so forth.img is not portable to other emulators
 unless they implement kbd and out.
 
-The built-in disassembler includes code from Brian Swetlands DCPU-16 emulator,
+The built-in disassembler includes code from Brian Swetland's DCPU-16 emulator,
 see the file disassemble.c for license and copyright info.
 
 To build, just run:
