@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "usage: tohex <core.img>"
+  echo "  writes output in out.hex, suitable for swetland's dcpu."
+fi
+
+cat $1 | dd conv=swab 2>/dev/null | /usr/bin/od -v -An -tx2 -w2 | sed -e 's/ //' > out.hex

@@ -236,7 +236,7 @@ docol:      pushrsp(y)
             set a, 0
             ifg [1+z], [z]
             set a, 0xffff
-			ife [1+z], [z]
+            ife [1+z], [z]
             set a, 0xffff
             add z, 1
             set [z], a
@@ -367,7 +367,11 @@ zbranch.1:  add z, 1                ; pop
             next
 
             defcode(bye, 0, bye)
-            die [z]                 ; make vm exit. exit code on stack.
+            die 0                   ; make vm exit.
+
+            defcode(debug, 0, debug)
+            dbg 0                   ; enter emulator debugger
+			next
 
             defcode(key, 0, key)
             sub z, 1
@@ -386,7 +390,6 @@ key.1:      kbd [z]                 ; fetch keypress
             out 0x0a
             next
 
-            ; TODO handle backspace
             ; ( a u1 -- u2 )
             defcode(accept, 0, accept)
             set a, [1+z]            ; dest addr in a
@@ -396,7 +399,15 @@ accept.1:   ife a, [z]              ; bail if at limit
 accept.3:   kbd [a]                 ; read
             ife [a], -1             ; if no key, try again
             set pc, accept.3
-            ife [a], 0x0a           ; bail if newline
+            ifn [a], 0x08           ; skip if not backspace/delete
+            set pc, accept.4
+            out 0x08                ; handle backspace... erase from the terminal
+            out 0x20
+            out 0x08
+            ifg a, [1+z]            ; backspace input buffer, if possible
+            sub a, 1
+            set pc, accept.3        ; ...and try again
+accept.4:   ife [a], 0x0a           ; bail if newline
             set pc, accept.2
             out [a]                 ; echo it to the terminal
             add a, 1
@@ -755,7 +766,7 @@ interp_.3:  next
 ; quit is also the bootstrap word...
             ; TODO check refill result (although it can't currently fail)
             defword(quit, 0, quit)
-			dw cr                   ; start a fresh line
+            dw cr                   ; start a fresh line
             dw r0, fetch, rspstore  ; empty return stack
             dw refill, drop         ; refill input buffer
             dw interpret, zequ      ; run

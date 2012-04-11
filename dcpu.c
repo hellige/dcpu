@@ -1,7 +1,7 @@
 // TODO cycle counting
-// TODO debugger
 
 #include <errno.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -9,6 +9,8 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+typedef uint16_t u16;
 
 #define DCPU_VERSION "1.1-mh"
 #define DCPU_MODS    "+out +kbd +img +die"
@@ -21,18 +23,20 @@
 #define ARG_MASK  0x3f
 #define ARG_SIZE  6
 
+extern u16 *disassemble(u16 *pc, char *out);
+
 typedef struct dcpu_t {
-  uint16_t sp;
-  uint16_t pc;
-  uint16_t o;
-  uint16_t reg[NREGS];
-  uint16_t ram[RAM_WORDS];
+  u16 sp;
+  u16 pc;
+  u16 o;
+  u16 reg[NREGS];
+  u16 ram[RAM_WORDS];
+  struct termios old_tio;
+  struct termios run_tio;
 } dcpu;
 
-static struct termios old_tio;
-
-static int run(dcpu *dcpu);
-static int init(dcpu *dcpu, const char *image);
+static void run(dcpu *dcpu);
+static bool init(dcpu *dcpu, const char *image);
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -40,34 +44,35 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // set stdin unbuffered for immediate keyboard input
-  struct termios new_tio;
-  tcgetattr(STDIN_FILENO, &old_tio);
-  new_tio = old_tio;
-  new_tio.c_lflag &= ~ICANON;
-  new_tio.c_lflag &= ~ECHO;
-  new_tio.c_cc[VTIME] = 0;
-  new_tio.c_cc[VMIN] = 0;
-  tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-
-  puts("\nwelcome to dcpu-16, version " DCPU_VERSION ".");
-  puts("mods: " DCPU_MODS ".");
+  puts("\nwelcome to dcpu-16, version " DCPU_VERSION);
+  puts("mods: " DCPU_MODS);
 
   dcpu dcpu;
-  int result = init(&dcpu, argv[1]);
-  if (result) return result;
+  if (!init(&dcpu, argv[1])) return -1;
 
+  puts("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.");
   puts("booting...\n");
   fflush(stdout);
-  result = run(&dcpu);
+  run(&dcpu);
 
-  // restore the former settings
-  tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+  puts("\ndcpu-16 halted.\n");
 
-  return result;
+  return 0;
 }
 
-int init(dcpu *dcpu, const char *image) {
+void termset(struct termios *tio) {
+  tcsetattr(STDIN_FILENO, TCSANOW, tio);
+}
+
+bool init(dcpu *dcpu, const char *image) {
+  // set stdin unbuffered for immediate keyboard input
+  tcgetattr(STDIN_FILENO, &dcpu->old_tio);
+  dcpu->run_tio = dcpu->old_tio;
+  dcpu->run_tio.c_lflag &= ~ICANON;
+  dcpu->run_tio.c_lflag &= ~ECHO;
+  dcpu->run_tio.c_cc[VTIME] = 0;
+  dcpu->run_tio.c_cc[VMIN] = 0;
+
   dcpu->sp = 0;
   dcpu->pc = 0;
   dcpu->o = 0;
@@ -77,13 +82,13 @@ int init(dcpu *dcpu, const char *image) {
   FILE *img = fopen(image, "r");
   if (!img) {
     fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
-    return -1;
+    return false;
   }
 
   int img_size = fread(dcpu->ram, 2, RAM_WORDS, img);
   if (ferror(img)) {
     fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
-    return -1;
+    return false;
   }
 
   printf("loaded image from %s: 0x%05x words\n", image, img_size);
@@ -93,7 +98,7 @@ int init(dcpu *dcpu, const char *image) {
     dcpu->ram[i] = (dcpu->ram[i] >> 8) | ((dcpu->ram[i] & 0xff) << 8);
 
   fclose(img);
-  return 0;
+  return true;
 }
 
 // note limit is 32-bit, so that we can distinguish 0 from RAM_WORDS
@@ -118,19 +123,19 @@ void coredump(dcpu *dcpu, uint32_t limit) {
   fclose(img);
 }
 
-static inline uint16_t next(dcpu *dcpu) {
+static inline u16 next(dcpu *dcpu) {
   return dcpu->ram[dcpu->pc++];
 }
 
-static inline uint8_t opcode(uint16_t instr) {
+static inline uint8_t opcode(u16 instr) {
   return instr & 0xf;
 }
 
-static inline uint8_t arg_a(uint16_t instr) {
+static inline uint8_t arg_a(u16 instr) {
   return (instr >> OP_SIZE) & ARG_MASK;
 }
 
-static inline uint8_t arg_b(uint16_t instr) {
+static inline uint8_t arg_b(u16 instr) {
   return (instr >> (OP_SIZE + ARG_SIZE)) & ARG_MASK;
 }
 
@@ -143,10 +148,9 @@ static inline uint8_t arg_b(uint16_t instr) {
 #define ARG_NXA  0x1e  // next word, deref
 #define ARG_NXL  0x1f  // next word, literal
 
-static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr,
-    bool effects) {
+static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects) {
   // in case caller doesn't need addr...
-  uint16_t *tmp;
+  u16 *tmp;
   if (addr == NULL) addr = &tmp;
 
   // initialize to null, the right result for a literal
@@ -198,14 +202,14 @@ static uint16_t decode_arg(dcpu *dcpu, uint8_t arg, uint16_t **addr,
   return **addr;
 }
 
-static inline void set(uint16_t *dest, uint16_t val) {
+static inline void set(u16 *dest, u16 val) {
   if (dest) *dest = val;
   // otherwise, attempt to write a literal: a silent fault.
 }
 
 // decode (but do not execute) next instruction...
 static inline void skip(dcpu *dcpu) {
-  uint16_t instr = next(dcpu);
+  u16 instr = next(dcpu);
   decode_arg(dcpu, arg_a(instr), NULL, false);
   decode_arg(dcpu, arg_b(instr), NULL, false);
 }
@@ -227,10 +231,10 @@ static inline void skip(dcpu *dcpu) {
 #define OP_IFG 0xe
 #define OP_IFB 0xf
 
-static void exec_basic(dcpu *dcpu, uint16_t instr) {
-  uint16_t *dest;
-  uint16_t a = decode_arg(dcpu, arg_a(instr), &dest, true);
-  uint16_t b = decode_arg(dcpu, arg_b(instr), NULL, true);
+static void exec_basic(dcpu *dcpu, u16 instr) {
+  u16 *dest;
+  u16 a = decode_arg(dcpu, arg_a(instr), &dest, true);
+  u16 b = decode_arg(dcpu, arg_b(instr), NULL, true);
 
   switch (opcode(instr)) {
 
@@ -239,7 +243,7 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
       break;
 
     case OP_ADD: {
-      uint16_t sum = a + b;
+      u16 sum = a + b;
       set(dest, sum);
       dcpu->o = sum < a ? 0x1 : 0;
       break;
@@ -320,12 +324,19 @@ static void exec_basic(dcpu *dcpu, uint16_t instr) {
 #define OP_NB_OUT 0x02 // ascii char to console
 #define OP_NB_KBD 0x03 // ascii char from keybaord, store in a
 #define OP_NB_IMG 0x04 // save core image to core.img, up to address in a
-#define OP_NB_DIE 0x05 // exit emulator, exit code in a
+#define OP_NB_DIE 0x05 // exit emulator
+#define OP_NB_DBG 0x06 // enter the emulator debugger
 
-static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
+typedef enum {
+  A_CONTINUE,
+  A_BREAK,
+  A_EXIT
+} action_t;
+
+static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
   uint8_t opcode = arg_a(instr);
-  uint16_t *dest;
-  uint16_t a = decode_arg(dcpu, arg_b(instr), &dest, true);
+  u16 *dest;
+  u16 a = decode_arg(dcpu, arg_b(instr), &dest, true);
 
   switch (opcode) {
     case OP_NB_JSR:
@@ -342,7 +353,9 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
       // will set dest to -1 if no key is available...
       int c = getchar();
       // since we're non-canon, we need to check for ctrl-d ourselves...
-      if (c == 0x04) exit(0);
+      if (c == 0x04) return A_EXIT;
+      // we'll also map delete to backspace to avoid goofy terminals...
+      if (c == 0x7f) c = 0x08;
       set(dest, c);
       break;
     }
@@ -352,25 +365,145 @@ static int exec_nonbasic(dcpu *dcpu, uint16_t instr) {
       break;
 
     case OP_NB_DIE:
-      puts("\ndcpu-16 halted.");
-      exit(a); // TODO a bit abrupt...
+      return A_EXIT;
+
+    case OP_NB_DBG:
+      return A_BREAK;
 
     default:
-      fprintf(stderr, "reserved instruction. abort.\n");
-      return -1;
+      fprintf(stderr, "reserved instruction: 0x%04x, pc now 0x%04x.",
+        opcode, dcpu->pc);
+      return A_BREAK;
   }
 
-  return 0;
+  return A_CONTINUE;
 }
 
-static int run(dcpu *dcpu) {
+static action_t step(dcpu *dcpu) {
+  u16 instr = next(dcpu);
+  int result = A_CONTINUE;
+  if (opcode(instr) == OP_NON)
+    result = exec_nonbasic(dcpu, instr);
+  else
+    exec_basic(dcpu, instr);
+  return result;
+}
+
+static bool prefix(char *pre, char *full) {
+  return !strncasecmp(pre, full, strlen(pre));
+}
+
+static bool matches(char *tok, char *min, char *full) {
+  return prefix(min, tok) && prefix(tok, full);
+}
+
+
+static void dumpheader(void) {
+  printf(
+      "pc   sp   o    a    b    c    x    y    z    i    j    instruction\n"
+      "---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- -----------\n");
+}
+
+static void dumpstate(dcpu *d) {
+  char out[128];
+  disassemble(d->ram + d->pc, out);
+  printf(
+      "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %s\n",
+      d->pc, d->sp, d->o,
+      d->reg[0], d->reg[1], d->reg[2], d->reg[3],
+      d->reg[4], d->reg[5], d->reg[6], d->reg[7],
+      out);
+}
+
+
+static bool debug(dcpu *dcpu) {
+  static char buf[BUFSIZ];
+  puts("\nentering emulator debugger: enter 'h' for help.");
+  dumpheader();
+  dumpstate(dcpu);
   for (;;) {
-    uint16_t instr = next(dcpu);
-    int result = 0;
-    if (opcode(instr) == OP_NON)
-      result = exec_nonbasic(dcpu, instr);
-    else
-      exec_basic(dcpu, instr);
-    if (result) return result;
+    printf(" * ");
+    if (!fgets(buf, BUFSIZ, stdin)) return false;
+
+    char *delim = " \t\n";
+    char *tok = strtok(buf, delim);
+    if (!tok) continue;
+    if (matches(tok, "h", "help")
+        || matches(tok, "?", "?")) {
+      printf(
+          "  help, ?: show this message\n"
+          "  continue: resume running\n"
+          "  step: execute a single instruction\n"
+          "  dump: display the state of the cpu\n"
+          "  core: dump ram image to core.img\n"
+          "  exit, quit: exit emulator\n"
+          "unambiguous abbreviations are recognized "
+            "(e.g., s for step or con for continue).\n"
+          );
+    } else if (matches(tok, "con", "continue")) {
+      return true;
+    } else if (matches(tok, "s", "step")) {
+      termset(&dcpu->run_tio);
+      step(dcpu);
+      termset(&dcpu->old_tio);
+      dumpstate(dcpu);
+    } else if (matches(tok, "d", "dump")) {
+      dumpheader();
+      dumpstate(dcpu);
+    } else if (matches(tok, "cor", "core")) {
+      coredump(dcpu, 0);
+      puts("core written to core.img");
+    } else if (matches(tok, "e", "exit")
+        || matches(tok, "q", "quit")) {
+      return false;
+    } else {
+      printf("unrecognized or ambiguous command: %s\n", tok);
+    }
   }
+}
+
+static bool block(int how, sigset_t *sigs) {
+  if (sigprocmask(how, sigs, 0)) {
+    fprintf(stderr, "error setting sigmask: %s\n", strerror(errno));
+    return false;
+  }
+  return true;
+}
+
+static void run(dcpu *dcpu) {
+  sigset_t sigs;
+  sigemptyset(&sigs);
+  sigaddset(&sigs, SIGINT);
+  if (!block(SIG_BLOCK, &sigs)) return;
+
+  termset(&dcpu->run_tio);
+
+  bool running = true;
+  while (running) {
+    bool brk = false;
+    action_t action = step(dcpu);
+    if (action == A_EXIT) running = false;
+    if (action == A_BREAK) brk = true;
+
+    struct timespec ts = {0, 0};
+    siginfo_t info;
+    if (sigtimedwait(&sigs, &info, &ts) == -1) {
+      if (errno != EAGAIN) {
+        fprintf(stderr, "error checking signals: %s\n", strerror(errno));
+        return;
+      }
+    } else {
+      brk = true;
+    }
+    
+    if (brk) {
+      termset(&dcpu->old_tio);
+      if (!block(SIG_UNBLOCK, &sigs)) return;
+      running = debug(dcpu);
+      termset(&dcpu->run_tio);
+      if (!block(SIG_BLOCK, &sigs)) return;
+    }
+  }
+
+  termset(&dcpu->old_tio);
 }

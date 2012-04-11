@@ -100,6 +100,7 @@ NonBasic("OUT", 0x2) # custom, write char to console
 NonBasic("KBD", 0x3) # custom, read char from keyboard
 NonBasic("IMG", 0x4) # custom, dump core to file
 NonBasic("DIE", 0x5) # custom, make emulator exit
+NonBasic("DBG", 0x6) # custom, enter emulator debugger
 
 # pseudo-ops...
 DW()
