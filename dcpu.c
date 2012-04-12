@@ -29,6 +29,7 @@
 // TODO cycle counting
 
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -89,6 +90,7 @@ int main(int argc, char **argv) {
 }
 
 void termset(struct termios *tio) {
+  fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) ^ O_NONBLOCK);
   tcsetattr(STDIN_FILENO, TCSANOW, tio);
 }
 
@@ -99,7 +101,7 @@ bool init(dcpu *dcpu, const char *image) {
   dcpu->run_tio.c_lflag &= ~ICANON;
   dcpu->run_tio.c_lflag &= ~ECHO;
   dcpu->run_tio.c_cc[VTIME] = 0;
-  dcpu->run_tio.c_cc[VMIN] = 0;
+  dcpu->run_tio.c_cc[VMIN] = 1;
 
   dcpu->sp = 0;
   dcpu->pc = 0;
@@ -490,46 +492,41 @@ static bool debug(dcpu *dcpu) {
   }
 }
 
-static bool block(int how, sigset_t *sigs) {
-  if (sigprocmask(how, sigs, 0)) {
-    fprintf(stderr, "error setting sigmask: %s\n", strerror(errno));
+static volatile bool interrupted = false;
+
+static void handler(int signum) {
+  interrupted = true;
+}
+
+static bool block_sigint(bool block) {
+  struct sigaction sa;
+  sa.sa_handler = block ? handler : SIG_DFL;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  if (sigaction(SIGINT, &sa, NULL)) {
+    fprintf(stderr, "error setting signal handler: %s\n", strerror(errno));
     return false;
   }
   return true;
 }
 
 static void run(dcpu *dcpu) {
-  sigset_t sigs;
-  sigemptyset(&sigs);
-  sigaddset(&sigs, SIGINT);
-  if (!block(SIG_BLOCK, &sigs)) return;
+  if (!block_sigint(true)) return;
 
   termset(&dcpu->run_tio);
 
   bool running = true;
   while (running) {
-    bool brk = false;
     action_t action = step(dcpu);
     if (action == A_EXIT) running = false;
-    if (action == A_BREAK) brk = true;
-
-    struct timespec ts = {0, 0};
-    siginfo_t info;
-    if (sigtimedwait(&sigs, &info, &ts) == -1) {
-      if (errno != EAGAIN) {
-        fprintf(stderr, "error checking signals: %s\n", strerror(errno));
-        return;
-      }
-    } else {
-      brk = true;
-    }
     
-    if (brk) {
+    if (action == A_BREAK || interrupted) {
+      interrupted = false;
       termset(&dcpu->old_tio);
-      if (!block(SIG_UNBLOCK, &sigs)) return;
+      if (!block_sigint(false)) return;
       running = debug(dcpu);
       termset(&dcpu->run_tio);
-      if (!block(SIG_BLOCK, &sigs)) return;
+      if (!block_sigint(true)) return;
     }
   }
 
