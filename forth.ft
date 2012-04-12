@@ -112,9 +112,12 @@
 : abort   s0 @ dsp! quit ;
 
 
-
 \ the real boot word
-: boot char ! emit cr quit ;
+: boot  ( never returns )
+    ." welcome to goforth on dcpu-16." cr
+    ."    'i figured i owned just dark skies, and that darkness fit me best." cr
+    ."     go, folks, go forth. trust your brain! trust your body!'" cr
+    quit ;
 ' boot boot-word !
 
 \ save the whole dictionary as a bootable image
