@@ -494,6 +494,28 @@ type.2:     add z, 2                ; pop args
 
 
 ; parsing, compiling
+
+            ; expects address of string in a, returns bool in j
+isspace_:   set j, 0
+            ife [a], 0x20           ; space
+            set j, -1
+            ife [a], 0x09           ; tab
+            set j, -1
+            ife [a], 0x0d           ; cr
+            set j, -1
+            ife [a], 0x0a           ; lf
+            set j, -1
+            set pc, pop
+
+            ; expects address of string in a, upper limit in c
+dropspace_: ife a, c
+            set pc, pop             ; input exhausted, bail
+            jsr isspace_            ; space? result in j
+            ife j, 0                ; not a space, return
+            set pc, pop
+            add a, 1                ; `next' char
+            set pc, dropspace_
+
             ; ( char "ccc<char>" -- a u )
             defcode(parse, 0, parse)
             set i, [z]              ; load terminator
@@ -502,6 +524,7 @@ type.2:     add z, 2                ; pop args
             set c, a
             add c, [var_srclen]     ; store limit in c
             add a, [var_inptr]      ; add >in, a is current parse location
+            jsr dropspace_          ; ignore initial whitespace
 parse.2:    set [1+z], a            ; push start of word
 parse.3:    ife a, c
             set pc, parse.end       ; input exhausted, bail
@@ -524,7 +547,6 @@ parse.end:  set [z], a              ; push parsed length
             sub [var_inptr], [var_srcptr]
             next
 
-            ; TODO other space chars!
             ; ( "<spaces>name" -- a u )
             defcode(parse-word, 0, parseword)
             sub z, 2                ; we'll have two results
@@ -532,16 +554,12 @@ parse.end:  set [z], a              ; push parsed length
             set c, a
             add c, [var_srclen]     ; store limit in c
             add a, [var_inptr]      ; add >in, a is current parse location
-pword.1:    ife a, c
-            set pc, pword.2         ; input exhausted, bail
-            ifn [a], 0x20           ; skip initial spaces
-            set pc, pword.2
-            add a, 1
-            set pc, pword.1
+            jsr dropspace_          ; ignore initial whitespace
 pword.2:    set [1+z], a            ; push start of word
 pword.3:    ife a, c
             set pc, pword.end       ; input exhausted, bail
-            ife [a], 0x20
+            jsr isspace_            ; space? result in j
+            ifn j, 0
             set pc, pword.end       ; space, all done!
             add a, 1
             set pc, pword.3

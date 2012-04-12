@@ -87,6 +87,9 @@
 : hex  ( -- )  16 base ! ;
 
 \ printing...
+
+: spaces  ( n -- )  begin ?dup while space 1- repeat ;
+
 : u.  ( u -- )
     base @ /mod
     ?dup if recurse then
@@ -114,9 +117,9 @@
 
 \ the real boot word
 : boot  ( never returns )
-    ." welcome to goforth on dcpu-16." cr
-    ."    'i figured i owned just dark skies, and that darkness fit me best." cr
-    ."     go, folks, go forth. trust your brain! trust your body!'" cr
+    space ." welcome to goforth on dcpu-16." cr
+    4 spaces ." 'i figured i owned just dark skies, and that darkness fit me best." cr
+    5 spaces ." go, folks, go forth. trust your brain! trust your body!'" cr
     quit ;
 ' boot boot-word !
 
