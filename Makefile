@@ -11,7 +11,7 @@ boot.img: forth.dasm masm
 	./masm forth.s $@
 
 forth.img: forth.ft boot.img dcpu
-	cat forth.ft | ./dcpu boot.img > /dev/null
+	cat forth.ft | ./dcpu boot.img #> /dev/null
 	mv core.img $@
 
 clean:

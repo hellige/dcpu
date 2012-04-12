@@ -28,7 +28,6 @@
 
 : '\n'   10 ;
 : bl   32 ;
-
 : space   bl emit ;
 
 : true   -1 ;
@@ -57,6 +56,7 @@
 \ : test 65 emit my;
 \ test test test
 
+
 : recurse   latest @ >cfa , ; immediate
 
 \ if-then-else
@@ -78,26 +78,50 @@
 : while   compile 0branch here 0 , ; immediate
 : repeat   compile branch swap here - , dup here swap - swap ! ; immediate
 
+
 \ char grabs first char of next word, but it needs to be state-smart...
 : char   parse-word drop @
          state @ if [compile] literal then ; immediate
+
+
+\ stack manipulators
+: nip  ( x y -- y )  swap drop ;
+: tuck  ( x y -- y x y )  swap over ;
+: pick  ( x_u ... x_1 x_0 u -- x_u ... x_1 x_0 x_u )  1+ dsp@ + @ ;
+
 
 \ standard base-changing words
 : decimal  ( -- )  10 base ! ;
 : hex  ( -- )  16 base ! ;
 
+
 \ printing...
 
-: spaces  ( n -- )  begin ?dup while space 1- repeat ;
+\ TODO 0>
+: spaces  ( n -- )  begin dup 0 > while space 1- repeat drop ;
 
 : u.  ( u -- )
     base @ /mod
     ?dup if recurse then
-    dup 10 < if char 0 else 10 - char a then + emit ;
+    dup 10 u< if char 0 else 10 - char a then + emit ;
 
+\ number of digits in an unsigned number in the current base
+: uwidth  ( u -- width )  base @ / ?dup if recurse 1+ else 1 then ;
+\ print unsigned with minimum width (space-padded)
+: u.r  ( u width -- ) swap dup uwidth rot swap - spaces u. ;
+\ print signed with minimum width (space-padded)
+\ TODO 0<
+: .r  ( n width -- ) swap dup 0 <
+    if negate 1 swap rot 1- else 0 swap rot then
+    swap dup uwidth rot swap -  spaces swap  if char - emit then  u. ;
+
+: . 0 .r space ;
 : .s  ( -- )
     dsp@ s0 @ swap - char < emit u. char > emit space
-    dsp@ s0 @ begin 1- 2dup swap >= while dup @ u. space repeat 2drop ;
+    dsp@ s0 @ begin 1- 2dup u<= while dup @ . repeat 2drop ;
+: u. u. space ;
+
+: ? ( addr -- ) @ . ;
 
 \ strings
 : .(   char ) parse type ; immediate

@@ -241,6 +241,21 @@ docol:      pushrsp(y)
             add z, 1
             next
 
+            ; TODO unsigned mul
+            defcode(*, 0, times)
+            set a, [z]
+            add z, 1
+            mul [z], a
+            next
+
+            ; TODO unsigned div
+            defcode(/, 0, div)
+            set a, [z]
+            add z, 1
+            div [z], a
+            next
+
+            ; TODO unsigned divmod
             defcode(/mod, 0, divmod)
             set a, [z]
             set [z], [1+z]
@@ -256,10 +271,35 @@ docol:      pushrsp(y)
             sub [z], 1
             next
 
+            defcode(negate, 0, negate)
+            xor [z], 0xffff         ; negate
+            add [z], 1
+            next
+
             ; TODO more...
 
 ; comparisons
             defcode(<, 0, less)
+            set a, 0
+            add [z], 0x8000
+            add [1+z], 0x8000
+            ifg [z], [1+z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
+            defcode(>, 0, gt)
+            set a, 0
+            add [z], 0x8000
+            add [1+z], 0x8000
+            ifg [1+z], [z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
+            defcode(u<, 0, uless)
             set a, 0
             ifg [z], [1+z]
             set a, 0xffff
@@ -267,7 +307,25 @@ docol:      pushrsp(y)
             set [z], a
             next
 
-            defcode(>=, 0, gteq)
+            defcode(u>, 0, ugt)
+            set a, 0
+            ifg [1+z], [z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
+            defcode(u<=, 0, ulteq)
+            set a, 0
+            ifg [z], [1+z]
+            set a, 0xffff
+            ife [z], [1+z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
+            defcode(u>=, 0, ugteq)
             set a, 0
             ifg [1+z], [z]
             set a, 0xffff
@@ -872,7 +930,7 @@ prompt_:    out 0x20
 
 ; we indirect the actual boot through a variable, so that we can reset
 ; the boot word before saving the final image.
-            defvar(boot-word, bootword, boot)
+            defvar(boot-word, bootword, quit)
 ; define h down here, so it's clear where it's coming from...
             defvar(h, h, h_init)
 ; define latest last, so that it can start out pointing to itself.
