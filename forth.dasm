@@ -88,7 +88,7 @@
 
 ; TODO all the io primitives and the dictionary use whole words for ascii chars.
 ; this is much easier in the absence of byte addressing, but it's also terribly
-; wasteful. fix.
+; wasteful. fix, or at least introduce 'packed strings' for dictionary names.
 
 define(s0_, 0xf000)
 
@@ -301,6 +301,16 @@ zequ.1:     set [z], 0xffff
             add y, 1
             next
 
+            defcode(litstring, 0, litstring)
+            ; push the count and following string from the forth ip
+            sub z, 2
+            set [z], [y]
+            set [1+z], y
+            add [1+z], 1
+            add y, [y]
+            add y, 1
+            next
+
             defcode(execute, 0, execute)
             set x, [z]              ; get xt from stack
             add z, 1                ; and pop it
@@ -406,7 +416,7 @@ zbranch.1:  add z, 1                ; pop
 
             defcode(debug, 0, debug)
             dbg 0                   ; enter emulator debugger
-			next
+            next
 
             defcode(key, 0, key)
             sub z, 1
@@ -484,7 +494,6 @@ type.2:     add z, 2                ; pop args
 
 
 ; parsing, compiling
-            ; TODO byte addressing!
             ; ( char "ccc<char>" -- a u )
             defcode(parse, 0, parse)
             set i, [z]              ; load terminator
@@ -500,7 +509,15 @@ parse.3:    ife a, c
             set pc, parse.end2      ; if found, done!
             add a, 1
             set pc, parse.3
-parse.end2: add a, 1                ; include terminator
+            ; TODO this is some ugly duplication, but it's late and i don't
+            ; care enough to fix it right now. the only difference between
+            ; the `next' two snippets is the "add a, 1" in the middle.
+parse.end2: set [z], a              ; push parsed length
+            sub [z], [1+z]
+            add a, 1                ; include terminator
+            set [var_inptr], a      ; store `next' location back to >in
+            sub [var_inptr], [var_srcptr]
+            next
 parse.end:  set [z], a              ; push parsed length
             sub [z], [1+z]
             set [var_inptr], a      ; store `next' location back to >in
@@ -508,7 +525,6 @@ parse.end:  set [z], a              ; push parsed length
             next
 
             ; TODO other space chars!
-            ; TODO byte addressing!
             ; ( "<spaces>name" -- a u )
             defcode(parse-word, 0, parseword)
             sub z, 2                ; we'll have two results

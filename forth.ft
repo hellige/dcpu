@@ -96,6 +96,18 @@
     dsp@ s0 @ swap - char < emit u. char > emit space
     dsp@ s0 @ begin 1- 2dup swap >= while dup @ u. space repeat 2drop ;
 
+\ strings
+: .(   char ) parse type ; immediate
+
+: S"   compile litstring  char " parse
+       dup ,                    \ compile the count
+       here                     \ save current compile location
+       swap dup allot           \ advance it
+       move ; immediate         \ copy the string
+
+: ."   [compile] S"  compile type ; immediate
+
+
 \ abort is just a stack-clearing quit
 : abort   s0 @ dsp! quit ;
 
@@ -107,4 +119,4 @@
 
 \ save the whole dictionary as a bootable image
 here dump-core
-0 bye
+bye
