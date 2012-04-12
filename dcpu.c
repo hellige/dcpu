@@ -401,7 +401,7 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
       return A_BREAK;
 
     default:
-      fprintf(stderr, "reserved instruction: 0x%04x, pc now 0x%04x.",
+      fprintf(stderr, "\nreserved instruction: 0x%04x, pc now 0x%04x.",
         opcode, dcpu->pc);
       return A_BREAK;
   }
