@@ -2,4 +2,4 @@
 /forth.s
 /forth.img
 /boot.img
-/*.o
+/out

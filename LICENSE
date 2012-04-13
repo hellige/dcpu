@@ -1,6 +1,6 @@
 All files:
   Copyright (c) 2012, Matt Hellige
-except for disassemble.c, which is:
+except for disassembler.c, which is:
   Copyright (c) 2012, Brian Swetland, Matt Hellige
 All rights reserved.
 
