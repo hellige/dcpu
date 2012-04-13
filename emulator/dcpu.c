@@ -39,6 +39,7 @@ int main(int argc, char **argv) {
   }
 
   puts("\nwelcome to dcpu-16, version " DCPU_VERSION);
+  printf("clock rate: %dkHz\n", DCPU_CLOCK_KHZ);
   puts("mods: " DCPU_MODS);
 
   dcpu dcpu;

@@ -25,11 +25,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// TODO cycle counting
-
 #include <errno.h>
+#include <sched.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#if defined(DCPU_LINUX)
+#include <time.h>
+#elif defined(DCPU_MACOSX)
+#include <mach/mach_time.h>
+#endif
 
 #include "dcpu.h"
 #include "opcodes.h"
@@ -40,7 +45,35 @@
 #define ARG_SIZE  6
 
 
+static inline tstamp_t now() {
+#if defined(DCPU_LINUX)
+  struct timespec tp;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  uint64_t nanos = 1000000000;
+  nanos *= tp.tv_sec;
+  return nanos + tp.tv_nsec;
+#elif defined(DCPU_MACOSX)
+  static mach_timebase_info_data_t info = {0,0};
+  if (!info.denom) mach_timebase_info(&info);
+  uint64_t t = mach_absolute_time();
+  return t * (info.numer/info.denom);
+#else
+#error i have no timer for this platform.
+#endif
+}
+
+
+static inline void await_tick(dcpu *dcpu) {
+  struct timespec ts = { 0, dcpu->nexttick - now() };
+  // don't care about failures. if we get a signal, we're gonna bail anyway.
+  nanosleep(&ts, NULL);
+  dcpu->nexttick += dcpu->tickns;
+}
+
+
 bool dcpu_init(dcpu *dcpu, const char *image) {
+  dcpu->tickns = 1000000 / DCPU_CLOCK_KHZ;
+
   dcpu->sp = 0;
   dcpu->pc = 0;
   dcpu->o = 0;
@@ -93,7 +126,10 @@ void dcpu_coredump(dcpu *dcpu, uint32_t limit) {
 }
 
 
-static inline u16 next(dcpu *dcpu) {
+static inline u16 next(dcpu *dcpu, bool effects) {
+  // decoding a word generally takes a cycle, *except* when we're decoding
+  // args for a skipped instruction. ugly, but that's the spec...
+  if (effects) await_tick(dcpu);
   return dcpu->ram[dcpu->pc++];
 }
 
@@ -154,18 +190,19 @@ static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects) {
         *addr = &dcpu->o;
         return **addr;
       case ARG_NXA:
-        *addr = &dcpu->ram[next(dcpu)];
+        *addr = &dcpu->ram[next(dcpu, effects)];
         return **addr;
       case ARG_NXL:
         // literal. no address (by fiat in this case) TODO is that right?
-        return next(dcpu);
+        await_tick(dcpu);
+        return next(dcpu, effects);
     }
   }
 
   // register or register[+offset] deref
   uint8_t reg = arg & 0x7;
   if (arg & 0x10)
-    *addr = &dcpu->ram[dcpu->reg[reg] + next(dcpu)]; // TODO: what if reg is PC?
+    *addr = &dcpu->ram[dcpu->reg[reg] + next(dcpu, effects)]; // TODO: what if reg is PC?
   else if (arg & 0x8)
     *addr = &dcpu->ram[dcpu->reg[reg]];
   else
@@ -182,7 +219,7 @@ static inline void set(u16 *dest, u16 val) {
 
 // decode (but do not execute) next instruction...
 static inline void skip(dcpu *dcpu) {
-  u16 instr = next(dcpu);
+  u16 instr = next(dcpu, true);
   decode_arg(dcpu, arg_a(instr), NULL, false);
   decode_arg(dcpu, arg_b(instr), NULL, false);
 }
@@ -202,17 +239,20 @@ static void exec_basic(dcpu *dcpu, u16 instr) {
       u16 sum = a + b;
       set(dest, sum);
       dcpu->o = sum < a ? 0x1 : 0;
+      await_tick(dcpu);
       break;
     }
 
     case OP_SUB:
       set(dest, a - b);
       dcpu->o = a < b ? 0xffff : 0;
+      await_tick(dcpu);
       break;
 
     case OP_MUL:
       set(dest, a * b);
       dcpu->o = ((a * b) >> 16) & 0xffff; // per spec
+      await_tick(dcpu);
       break;
 
     case OP_DIV:
@@ -223,6 +263,8 @@ static void exec_basic(dcpu *dcpu, u16 instr) {
         set(dest, a / b);
         dcpu->o = ((a << 16) / b) & 0xffff; // per spec
       }
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_MOD:
@@ -230,16 +272,20 @@ static void exec_basic(dcpu *dcpu, u16 instr) {
         set(dest, 0);
       else
         set(dest, a % b);
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_SHL:
       set(dest, a << b);
       dcpu->o = ((a << b) >> 16) & 0xffff; // per spec
+      await_tick(dcpu);
       break;
 
     case OP_SHR:
       set(dest, a >> b);
       dcpu->o = ((a << 16) >> b) & 0xffff; // per spec
+      await_tick(dcpu);
       break;
 
     case OP_AND:
@@ -256,18 +302,22 @@ static void exec_basic(dcpu *dcpu, u16 instr) {
 
     case OP_IFE:
       if (!(a == b)) skip(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_IFN:
       if (!(a != b)) skip(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_IFG:
       if (!(a > b)) skip(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_IFB:
       if (!(a & b)) skip(dcpu);
+      await_tick(dcpu);
       break;
   }
 }
@@ -321,7 +371,7 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
 
 
 action_t dcpu_step(dcpu *dcpu) {
-  u16 instr = next(dcpu);
+  u16 instr = next(dcpu, true);
   int result = A_CONTINUE;
   if (opcode(instr) == OP_NON)
     result = exec_nonbasic(dcpu, instr);
@@ -333,7 +383,7 @@ action_t dcpu_step(dcpu *dcpu) {
 
 void dcpu_run(dcpu *dcpu) {
   dcpu_runterm(dcpu);
-
+  dcpu->nexttick = now() + dcpu->tickns;
   bool running = true;
   while (running) {
     action_t action = dcpu_step(dcpu);
@@ -345,6 +395,5 @@ void dcpu_run(dcpu *dcpu) {
       dcpu_runterm(dcpu);
     }
   }
-
   dcpu_dbgterm(dcpu);
 }

@@ -33,18 +33,23 @@
 
 
 typedef uint16_t u16;
+typedef uint64_t tstamp_t;
 
 #define DCPU_VERSION  "1.1-mh"
 #define DCPU_MODS     "+out +kbd +img +die"
 #define COREFILE_NAME "core.img"
+#define DCPU_CLOCK_KHZ 150
 
 #define RAM_WORDS 0x10000
 // A, B, C, X, Y, Z, I, J
 #define NREGS     8
 
+
 typedef struct term_t term;
 
 typedef struct dcpu_t {
+  int tickns;
+  tstamp_t nexttick;
   u16 sp;
   u16 pc;
   u16 o;

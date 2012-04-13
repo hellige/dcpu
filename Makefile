@@ -1,6 +1,6 @@
 CC = gcc
 DEBUG = 
-CFLAGS = -ggdb3 -std=gnu99 -O2 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS)
+CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS)
 LIBS = $(PLATLIBS)
 
 PLATCFLAGS = 
@@ -9,11 +9,12 @@ PLATLIBS =
 
 system := $(shell uname)
 ifeq ($(system),Linux)
-    PLATCFLAGS = -fdiagnostics-show-option -fpic
+    PLATCFLAGS = -fdiagnostics-show-option -fpic -DDCPU_LINUX
+    PLATLIBS = -lrt
 endif
 ifeq ($(system),Darwin)
     DARWIN_ARCH = x86_64 # i386
-    PLATCFLAGS = -fPIC -arch $(DARWIN_ARCH)
+    PLATCFLAGS = -fPIC -arch $(DARWIN_ARCH) -DDCPU_MACOSX
     PLATLDFLAGS = -arch $(DARWIN_ARCH)
 endif
 
