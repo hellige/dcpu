@@ -137,7 +137,9 @@
 
 \ abort is just a stack-clearing quit
 : abort   s0 @ dsp! quit ;
-
+\ abort" is similar, but prints a message and only fires if n is non-zero
+: doabrt  ( n a u -- ) rot if cr ." ABORT: " type abort else 2drop then ;
+: abort"  ( n -- )  [compile] S" compile doabrt ; immediate
 
 \ the real boot word
 : boot  ( never returns )
