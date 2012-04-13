@@ -890,7 +890,7 @@ interp_.2:  sub z, 1                ; got a number. push it.
             set [z], i
 interp_.3:  next
 
-; quit is also the bootstrap word...
+; quit is the traditional name for the outer interpreter loop
             ; TODO check refill result (although it can't currently fail)
             defword(quit, 0, quit)
             dw cr                   ; start a fresh line
