@@ -71,8 +71,8 @@ static inline void await_tick(dcpu *dcpu) {
 }
 
 
-bool dcpu_init(dcpu *dcpu, const char *image) {
-  dcpu->tickns = 1000000 / DCPU_CLOCK_KHZ;
+bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz) {
+  dcpu->tickns = 1000000 / khz;
 
   dcpu->sp = 0;
   dcpu->pc = 0;

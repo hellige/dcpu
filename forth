@@ -1,3 +1,3 @@
 #!/bin/sh
 
-./dcpu forth.img
+./dcpu $* forth.img

@@ -38,7 +38,7 @@ typedef uint64_t tstamp_t;
 #define DCPU_VERSION  "1.1-mh"
 #define DCPU_MODS     "+out +kbd +img +die"
 #define COREFILE_NAME "core.img"
-#define DCPU_CLOCK_KHZ 150
+#define DEFAULT_KHZ   150
 
 #define RAM_WORDS 0x10000
 // A, B, C, X, Y, Z, I, J
@@ -69,7 +69,7 @@ typedef enum {
 extern u16 *disassemble(u16 *pc, char *out);
 
 // emulate.c
-extern bool dcpu_init(dcpu *dcpu, const char *image);
+extern bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz);
 extern void dcpu_coredump(dcpu *dcpu, uint32_t limit);
 extern void dcpu_run(dcpu *dcpu);
 extern action_t dcpu_step(dcpu *dcpu);
