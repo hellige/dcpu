@@ -14,8 +14,8 @@ ifeq ($(system),Linux)
 endif
 ifeq ($(system),Darwin)
     DARWIN_ARCH = x86_64 # i386
-    PLATCFLAGS = -fPIC -arch $(DARWIN_ARCH) -DDCPU_MACOSX
-    PLATLDFLAGS = -arch $(DARWIN_ARCH)
+    PLATCFLAGS = -fPIC -DDCPU_MACOSX # -arch $(DARWIN_ARCH)
+    PLATLDFLAGS = # -arch $(DARWIN_ARCH)
 endif
 
 MAIN_DIR = emulator
