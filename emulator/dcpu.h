@@ -44,8 +44,13 @@ typedef uint64_t tstamp_t;
 // A, B, C, X, Y, Z, I, J
 #define NREGS     8
 
-
-typedef struct term_t term;
+#define DISPLAY_HZ    60
+#define VRAM_ADDR     0x8000
+#define SCR_HEIGHT    16
+#define SCR_WIDTH     32
+#define KBD_BAUD      2000
+#define KBD_ADDR      0x9000
+#define KBD_BUFSIZ    16
 
 typedef struct dcpu_t {
   bool detect_loops;
@@ -56,7 +61,6 @@ typedef struct dcpu_t {
   u16 o;
   u16 reg[NREGS];
   u16 ram[RAM_WORDS];
-  term *term;
 } dcpu;
 
 typedef enum {
@@ -70,6 +74,7 @@ typedef enum {
 extern u16 *disassemble(u16 *pc, char *out);
 
 // emulate.c
+extern tstamp_t dcpu_now();
 extern bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz,
   bool bigend);
 extern void dcpu_coredump(dcpu *dcpu, uint32_t limit);
@@ -80,10 +85,16 @@ extern action_t dcpu_step(dcpu *dcpu);
 extern bool dcpu_debug(dcpu *dcpu);
 
 // terminal.c
-extern void dcpu_initterm(dcpu *dcpu);
-extern void dcpu_runterm(dcpu *dcpu);
-extern void dcpu_dbgterm(dcpu *dcpu);
-extern void dcpu_killterm(dcpu *dcpu);
+extern void dcpu_initterm(void);
+extern void dcpu_msg(char *fmt, ...)
+  __attribute__ ((format (printf, 1, 2)));
+extern int dcpu_getch(void);
+extern int dcpu_getstr(char *buf, int n);
+extern void dcpu_redraw(dcpu *dcpu);
+extern void dcpu_termtick(dcpu *dcpu, tstamp_t now);
+extern void dcpu_runterm(void);
+extern void dcpu_dbgterm(void);
+extern void dcpu_killterm(void);
 extern volatile bool dcpu_break;
 
 

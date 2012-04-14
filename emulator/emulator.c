@@ -44,7 +44,7 @@
 #define ARG_SIZE  6
 
 
-static inline tstamp_t now() {
+tstamp_t dcpu_now() {
 #if defined(DCPU_LINUX)
   struct timespec tp;
   clock_gettime(CLOCK_MONOTONIC, &tp);
@@ -63,9 +63,13 @@ static inline tstamp_t now() {
 
 
 static inline void await_tick(dcpu *dcpu) {
-  struct timespec ts = { 0, dcpu->nexttick - now() };
-  // don't care about failures. if we get a signal, we're gonna bail anyway.
-  nanosleep(&ts, NULL);
+  tstamp_t now = dcpu_now();
+  dcpu_termtick(dcpu, now);
+  if (now < dcpu->nexttick) {
+    struct timespec ts = { 0, dcpu->nexttick - now };
+    // don't care about failures. if we get a signal, we're gonna bail anyway.
+    nanosleep(&ts, NULL);
+  }
   dcpu->nexttick += dcpu->tickns;
 }
 
@@ -81,17 +85,17 @@ bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz, bool bigend) {
 
   FILE *img = fopen(image, "r");
   if (!img) {
-    fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
+    dcpu_msg("error reading image '%s': %s\n", image, strerror(errno));
     return false;
   }
 
   int img_size = fread(dcpu->ram, 2, RAM_WORDS, img);
   if (ferror(img)) {
-    fprintf(stderr, "error reading image '%s': %s\n", image, strerror(errno));
+    dcpu_msg("error reading image '%s': %s\n", image, strerror(errno));
     return false;
   }
 
-  printf("loaded image from %s: 0x%05x words\n", image, img_size);
+  dcpu_msg("loaded image from %s: 0x%05x words\n", image, img_size);
 
   // swap byte order...
   if (bigend)
@@ -108,7 +112,7 @@ void dcpu_coredump(dcpu *dcpu, uint32_t limit) {
   char *image = COREFILE_NAME;
   FILE *img = fopen(image, "w");
   if (!img) {
-    fprintf(stderr, "error opening image '%s': %s\n", image, strerror(errno));
+    dcpu_msg("error opening image '%s': %s\n", image, strerror(errno));
     return;
   }
 
@@ -117,7 +121,7 @@ void dcpu_coredump(dcpu *dcpu, uint32_t limit) {
   for (uint32_t i = 0; i < limit; i++) {
     if (fputc(dcpu->ram[i] >> 8, img) == EOF
         || fputc(dcpu->ram[i] & 0xff, img) == EOF) {
-      fprintf(stderr, "error writing to image '%s': %s\n", image, strerror(errno));
+      dcpu_msg("error writing to image '%s': %s\n", image, strerror(errno));
       return;
     }
   }
@@ -334,18 +338,20 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
       dcpu->pc = a;
       break;
 
+      // TODO kill
     case OP_NB_OUT:
-      putchar(a);
-      fflush(stdout);
+      //putchar(a);
+      //fflush(stdout);
       break;
 
+      // TODO kill
     case OP_NB_KBD: {
       // will set dest to -1 if no key is available...
-      int c = getchar();
+      int c = getch();
       // since we're non-canon, we need to check for ctrl-d ourselves...
       if (c == 0x04) return A_EXIT;
       // we'll also map delete to backspace to avoid goofy terminals...
-      if (c == 0x7f) c = 0x08;
+      if (c == 0x7f) c = 0x08; // TODO still needed with curses?
       set(dest, c);
       break;
     }
@@ -361,7 +367,7 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
       return A_BREAK;
 
     default:
-      fprintf(stderr, "\nreserved instruction: 0x%04x, pc now 0x%04x.",
+      dcpu_msg("reserved instruction: 0x%04x, pc now 0x%04x.\n",
         opcode, dcpu->pc);
       return A_BREAK;
   }
@@ -379,7 +385,7 @@ action_t dcpu_step(dcpu *dcpu) {
   else
     exec_basic(dcpu, instr);
   if (dcpu->detect_loops && dcpu->pc == oldpc) {
-    fprintf(stderr, "\nloop detected.\n");
+    dcpu_msg("loop detected.\n");
     return A_BREAK;
   }
   return result;
@@ -387,18 +393,21 @@ action_t dcpu_step(dcpu *dcpu) {
 
 
 void dcpu_run(dcpu *dcpu) {
-  dcpu_runterm(dcpu);
-  dcpu->nexttick = now() + dcpu->tickns;
+  dcpu_msg("running...\n");
+  dcpu_runterm();
+  dcpu->nexttick = dcpu_now() + dcpu->tickns;
   bool running = true;
   while (running) {
     action_t action = dcpu_step(dcpu);
     if (action == A_EXIT) running = false;
     if (action == A_BREAK || dcpu_break) {
       dcpu_break = false;
-      dcpu_dbgterm(dcpu);
+      dcpu_redraw(dcpu); // force a vram redraw before entering debugger
+      dcpu_dbgterm();
       running = dcpu_debug(dcpu);
-      dcpu_runterm(dcpu);
+      if (running) dcpu_msg("running...\n");
+      dcpu_runterm();
     }
   }
-  dcpu_dbgterm(dcpu);
+  dcpu_dbgterm();
 }

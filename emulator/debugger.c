@@ -41,7 +41,7 @@ static bool matches(char *tok, char *min, char *full) {
 
 
 static void dumpheader(void) {
-  printf(
+  dcpu_msg(
       "pc   sp   o    a    b    c    x    y    z    i    j    instruction\n"
       "---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- -----------\n");
 }
@@ -49,7 +49,7 @@ static void dumpheader(void) {
 static void dumpstate(dcpu *d) {
   char out[128];
   disassemble(d->ram + d->pc, out);
-  printf(
+  dcpu_msg(
       "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %s\n",
       d->pc, d->sp, d->o,
       d->reg[0], d->reg[1], d->reg[2], d->reg[3],
@@ -60,19 +60,19 @@ static void dumpstate(dcpu *d) {
 
 bool dcpu_debug(dcpu *dcpu) {
   static char buf[BUFSIZ];
-  puts("\nentering emulator debugger: enter 'h' for help.");
+  dcpu_msg("entering emulator debugger: enter 'h' for help.\n");
   dumpheader();
   dumpstate(dcpu);
   for (;;) {
-    printf(" * ");
-    if (!fgets(buf, BUFSIZ, stdin)) return false;
+    dcpu_msg(" * ");
+    if (!dcpu_getstr(buf, BUFSIZ)) return false;
 
     char *delim = " \t\n";
     char *tok = strtok(buf, delim);
     if (!tok) continue;
     if (matches(tok, "h", "help")
         || matches(tok, "?", "?")) {
-      printf(
+      dcpu_msg(
           "  help, ?: show this message\n"
           "  continue: resume running\n"
           "  step: execute a single instruction\n"
@@ -85,21 +85,21 @@ bool dcpu_debug(dcpu *dcpu) {
     } else if (matches(tok, "con", "continue")) {
       return true;
     } else if (matches(tok, "s", "step")) {
-      dcpu_runterm(dcpu);
+      dcpu_runterm();
       dcpu_step(dcpu);
-      dcpu_dbgterm(dcpu);
+      dcpu_dbgterm();
       dumpstate(dcpu);
     } else if (matches(tok, "d", "dump")) {
       dumpheader();
       dumpstate(dcpu);
     } else if (matches(tok, "cor", "core")) {
       dcpu_coredump(dcpu, 0);
-      puts("core written to core.img");
+      dcpu_msg("core written to core.img\n");
     } else if (matches(tok, "e", "exit")
         || matches(tok, "q", "quit")) {
       return false;
     } else {
-      printf("unrecognized or ambiguous command: %s\n", tok);
+      dcpu_msg("unrecognized or ambiguous command: %s\n", tok);
     }
   }
 }

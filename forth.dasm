@@ -74,10 +74,15 @@
 ;     | return stack         |
 ;     |        |             |
 ;     |        v             |
-;     | text input buffer    |<--- tib,s0
+;     | text input buffer    |<--- tib,s0 0xf000
 ;     | data stack           |
 ;     |        |             |
 ;     |        v             |
+;     | reserved (kbd buf)   | 0x9000 - 0x900f
+;     | unused (?)           |
+;     | reserved (video)     | 0x8000 - 0x8280
+;     |        ^             |
+;     |        |             |
 ;     | pad (n words from h) |<--- pad
 ;     |        ^             |
 ;     |        |             |<--- h

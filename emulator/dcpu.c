@@ -27,12 +27,15 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "dcpu.h"
 #include "opcodes.h"
+
+volatile bool dcpu_break = false;
 
 static void usage(char **argv) {
   fprintf(stderr, "usage: %s [options] <image>\n", argv[0]);
@@ -47,6 +50,22 @@ static void usage(char **argv) {
   fprintf(stderr,
       "as the program being run. the default is 150kHz.\n");
 } 
+
+static void handler(int signum) {
+  (void)signum;
+  dcpu_break = true;
+}
+
+static void block_sigint() {
+  struct sigaction sa;
+  sa.sa_handler = handler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  if (sigaction(SIGINT, &sa, NULL)) {
+    fprintf(stderr, "error setting signal handler: %s\n", strerror(errno));
+    fprintf(stderr, "continuing without signal support...");
+  }
+}
 
 int main(int argc, char **argv) {
   uint32_t khz = DEFAULT_KHZ;
@@ -105,20 +124,24 @@ int main(int argc, char **argv) {
   
   const char *image = argv[optind];
 
-  puts("\nwelcome to dcpu-16, version " DCPU_VERSION);
-  printf("clock rate: %dkHz\n", khz);
-  puts("mods: " DCPU_MODS);
+  // init term first so that image load status is visible...
+  block_sigint();
+  dcpu_initterm();
+  if (!dcpu_init(&dcpu, image, khz, bigend)) {
+    // ...even though that makes teardown a little uglier
+    dcpu_killterm();
+    return -1;
+  }
 
-  if (!dcpu_init(&dcpu, image, khz, bigend)) return -1;
-  dcpu_initterm(&dcpu);
+  dcpu_msg("welcome to dcpu-16, version " DCPU_VERSION "\n");
+  dcpu_msg("clock rate: %dkHz\n", khz);
+  dcpu_msg("mods: " DCPU_MODS "\n");
 
-  puts("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.");
-  puts("booting...\n");
-  fflush(stdout);
+  dcpu_msg("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.\n");
   dcpu_run(&dcpu);
 
-  dcpu_killterm(&dcpu);
-  puts("\ndcpu-16 halted.\n");
+  dcpu_msg("dcpu-16 halted.\n");
+  dcpu_killterm();
 
   return 0;
 }

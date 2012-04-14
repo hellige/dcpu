@@ -26,67 +26,117 @@
  */
 
 #include <errno.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <ncurses.h>
+#include <stdarg.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 
 #include "dcpu.h"
 
 
 struct term_t {
-  struct termios old_tio;
-  struct termios run_tio;
+  WINDOW *dbgwin;
+  tstamp_t tickns;
+  tstamp_t nexttick;
+  tstamp_t keyns;
+  tstamp_t nextkey;
+  u16 keypos;
 };
 
+static struct term_t term;
 
-void dcpu_initterm(dcpu *dcpu) {
-  term *t = malloc(sizeof(term)); // TODO check return
-  dcpu->term = t;
+void dcpu_initterm(void) {
+  term.tickns = 1000000000 / DISPLAY_HZ;
+  term.nexttick = dcpu_now();
+  term.keyns = 1000000000 / KBD_BAUD;
+  term.nextkey = dcpu_now();
+  term.keypos = 0;
 
-  // set stdin unbuffered for immediate keyboard input
-  tcgetattr(STDIN_FILENO, &t->old_tio);
-  t->run_tio = t->old_tio;
-  t->run_tio.c_lflag &= ~ICANON;
-  t->run_tio.c_lflag &= ~ECHO;
-  t->run_tio.c_cc[VTIME] = 0;
-  t->run_tio.c_cc[VMIN] = 1;
+  // should be done prior to initscr, and it doesn't matter if we do it twice
+  initscr();
+  cbreak();
+  noecho();
+  timeout(0);
+  keypad(stdscr, true);
+  term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
+  scrollok(term.dbgwin, true);
+  keypad(term.dbgwin, true);
+
+  // TODO colors...
 }
 
-void dcpu_killterm(dcpu *dcpu) {
-  free(dcpu->term); // TODO check return
+void dcpu_killterm(void) {
+  mvprintw(LINES - 1, 0, "press a key...\n");
+  timeout(-1);
+  getch();
+  endwin();
 }
 
-volatile bool dcpu_break = false;
+void readkey(dcpu *dcpu) {
+  int c = getch();
+  switch (c) {
+    case ERR: return; // no key. no problem.
+    case 0x04: dcpu_break = true; return; // ctrl-d. exit.
 
-static void handler(int signum) {
-  (void)signum;
-  dcpu_break = true;
+    // remap bs and del to bs, just in case
+    case KEY_BACKSPACE: c = 0x08; break;
+    case 0x7f: c = 0x08; break;
+  }
+  dcpu->ram[KBD_ADDR + term.keypos] = c;
+  term.keypos += 1;
+  term.keypos %= KBD_BUFSIZ;
 }
 
-static void block_sigint(bool block) {
-  struct sigaction sa;
-  sa.sa_handler = block ? handler : SIG_DFL;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  if (sigaction(SIGINT, &sa, NULL)) {
-    fprintf(stderr, "error setting signal handler: %s\n", strerror(errno));
-    fprintf(stderr, "continuing without signal support...");
+int dcpu_getstr(char *buf, int n) {
+  return wgetnstr(term.dbgwin, buf, n) == OK;
+}
+
+void dcpu_msg(char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vwprintw(term.dbgwin, fmt, args);
+  wrefresh(term.dbgwin);
+  va_end(args);
+}
+
+void dcpu_runterm(void) {
+  curs_set(0);
+  timeout(0);
+  noecho();
+}
+
+void dcpu_dbgterm(void) {
+  curs_set(1);
+  timeout(-1);
+  echo();
+}
+
+static void draw(u16 word, u16 row, u16 col) {
+  move(row+1, col+1);
+
+  // TODO color, etc.
+
+  char letter = word & 0xff;
+  if (!letter) letter = ' ';
+
+  addch(letter);
+}
+
+void dcpu_redraw(dcpu *dcpu) {
+  u16 *addr = &dcpu->ram[VRAM_ADDR];
+  for (u16 i = 0; i < SCR_HEIGHT; i++) 
+    for (u16 j = 0; j < SCR_WIDTH; j++)
+      draw(*addr++, i, j);
+  refresh();
+}
+
+void dcpu_termtick(dcpu *dcpu, tstamp_t now) {
+  if (now > term.nexttick) {
+    dcpu_redraw(dcpu);
+    term.nexttick += term.tickns;
+  }
+
+  if (now > term.nextkey) {
+    readkey(dcpu);
+    term.nextkey += term.keyns;
   }
 }
-
-void dcpu_runterm(dcpu *dcpu) {
-  block_sigint(true);
-  fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
-  tcsetattr(STDIN_FILENO, TCSANOW, &dcpu->term->run_tio);
-}
-
-void dcpu_dbgterm(dcpu *dcpu) {
-  block_sigint(false);
-  fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
-  tcsetattr(STDIN_FILENO, TCSANOW, &dcpu->term->old_tio);
-}
-

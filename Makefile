@@ -1,7 +1,7 @@
 CC = gcc
 DEBUG = 
 CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS)
-LIBS = $(PLATLIBS)
+LIBS = -lncurses $(PLATLIBS)
 
 PLATCFLAGS = 
 PLATLDFLAGS = 
@@ -44,7 +44,7 @@ boot.img: forth.dasm masm
 	./masm forth.s $@
 
 forth.img: forth.ft boot.img dcpu
-	cat forth.ft | ./dcpu -k 5000 boot.img > /dev/null
+	cat forth.ft | ./dcpu -k 10000 boot.img > /dev/null
 	mv core.img $@
 
 clean:
