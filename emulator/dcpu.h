@@ -48,6 +48,7 @@ typedef uint64_t tstamp_t;
 typedef struct term_t term;
 
 typedef struct dcpu_t {
+  bool detect_loops;
   int tickns;
   tstamp_t nexttick;
   u16 sp;

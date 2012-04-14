@@ -370,12 +370,17 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
 
 
 action_t dcpu_step(dcpu *dcpu) {
+  u16 oldpc = dcpu->pc;
   u16 instr = next(dcpu, true);
   int result = A_CONTINUE;
   if (opcode(instr) == OP_NON)
     result = exec_nonbasic(dcpu, instr);
   else
     exec_basic(dcpu, instr);
+  if (dcpu->detect_loops && dcpu->pc == oldpc) {
+    fprintf(stderr, "\nloop detected.\n");
+    return A_BREAK;
+  }
   return result;
 }
 
