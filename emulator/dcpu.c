@@ -36,10 +36,11 @@
 
 static void usage(char **argv) {
   fprintf(stderr, "usage: %s [options] <image>\n", argv[0]);
-  fprintf(stderr, "   -h, --help          display this message\n");
-  fprintf(stderr, "   -v, --version       display the version and exit\n");
-  fprintf(stderr, "   -k, --khz=k         set emulator clock rate (in kHz)\n");
-  fprintf(stderr, "   -l, --detect-loops  "
+  fprintf(stderr, "   -h, --help           display this message\n");
+  fprintf(stderr, "   -v, --version        display the version and exit\n");
+  fprintf(stderr, "   -k, --khz=k          set emulator clock rate (in kHz)\n");
+  fprintf(stderr, "   -e, --little-endian  image file is little-endian\n");
+  fprintf(stderr, "   -l, --detect-loops   "
       "enter debugger on single-instruction loop\n");
   fprintf(stderr,
       "the maximum achievable clock rate depends on the host cpu as well\n");
@@ -49,6 +50,7 @@ static void usage(char **argv) {
 
 int main(int argc, char **argv) {
   uint32_t khz = DEFAULT_KHZ;
+  bool bigend = true;
   dcpu dcpu;
   dcpu.detect_loops = false;
 
@@ -59,11 +61,12 @@ int main(int argc, char **argv) {
       {"help", 0, 0, 'h'},
       {"version", 0, 0, 'v'},
       {"khz", 1, 0, 'k'},
+      {"litt-endian", 0, 0, 'e'},
       {"detect-loops", 0, 0, 'l'},
       {0, 0, 0, 0},
     };
 
-    c = getopt_long(argc, argv, "hvk:l", long_options, NULL);
+    c = getopt_long(argc, argv, "hvk:el", long_options, NULL);
 
     if (c == -1) break;
 
@@ -83,6 +86,9 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 'e':
+        bigend = false;
+        break;
       case 'l':
         dcpu.detect_loops = true;
         break;
@@ -103,7 +109,7 @@ int main(int argc, char **argv) {
   printf("clock rate: %dkHz\n", khz);
   puts("mods: " DCPU_MODS);
 
-  if (!dcpu_init(&dcpu, image, khz)) return -1;
+  if (!dcpu_init(&dcpu, image, khz, bigend)) return -1;
   dcpu_initterm(&dcpu);
 
   puts("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.");

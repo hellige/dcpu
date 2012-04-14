@@ -70,7 +70,7 @@ static inline void await_tick(dcpu *dcpu) {
 }
 
 
-bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz) {
+bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz, bool bigend) {
   dcpu->tickns = 1000000 / khz;
 
   dcpu->sp = 0;
@@ -94,8 +94,9 @@ bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz) {
   printf("loaded image from %s: 0x%05x words\n", image, img_size);
 
   // swap byte order...
-  for (int i = 0; i < RAM_WORDS; i++)
-    dcpu->ram[i] = (dcpu->ram[i] >> 8) | ((dcpu->ram[i] & 0xff) << 8);
+  if (bigend)
+    for (int i = 0; i < RAM_WORDS; i++)
+      dcpu->ram[i] = (dcpu->ram[i] >> 8) | ((dcpu->ram[i] & 0xff) << 8);
 
   fclose(img);
   return true;
