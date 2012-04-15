@@ -44,6 +44,12 @@ struct term_t {
 
 static struct term_t term;
 
+static inline u16 color(int fg, int bg) {
+  return COLORS > 8
+    ? fg * 16 + bg
+    : (fg % 8) * 8 + (bg % 8);
+}
+
 void dcpu_initterm(void) {
   term.tickns = 1000000000 / DISPLAY_HZ;
   term.nexttick = dcpu_now();
@@ -53,13 +59,27 @@ void dcpu_initterm(void) {
 
   // should be done prior to initscr, and it doesn't matter if we do it twice
   initscr();
+  start_color();
   cbreak();
   keypad(stdscr, true);
   term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
   scrollok(term.dbgwin, true);
   keypad(term.dbgwin, true);
 
-  // TODO colors...
+  // set up colors...
+  if (COLORS > 8) {
+    // nice terminals...
+    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15};
+    for (int i = 0; i < 16; i++)
+      for (int j = 0; j < 16; j++)
+        init_pair(color(i, j), colors[i], colors[j]);
+  } else {
+    // crappy terminals at least get something...
+    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7};
+    for (int i = 0; i < 8; i++)
+      for (int j = 0; j < 8; j++)
+        init_pair(color(i, j), colors[i], colors[j]);
+  }
 }
 
 void dcpu_killterm(void) {
@@ -118,11 +138,15 @@ void dcpu_dbgterm(void) {
 static void draw(u16 word, u16 row, u16 col) {
   move(row+1, col+1);
 
-  // TODO color, etc.
+  char letter = word & 0x7f;
+  char fg = word >> 12;
+  char bg = (word >> 8) & 0xf;
+  bool blink = word & 0x80;
 
-  char letter = word & 0xff;
   if (!letter) letter = ' ';
 
+  attrset(COLOR_PAIR(color(fg, bg)));
+  if (blink) attron(A_BLINK);
   addch(letter);
 }
 

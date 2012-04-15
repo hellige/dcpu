@@ -44,7 +44,7 @@ typedef uint64_t tstamp_t;
 // A, B, C, X, Y, Z, I, J
 #define NREGS     8
 
-#define DISPLAY_HZ    60
+#define DISPLAY_HZ    30
 #define VRAM_ADDR     0x8000
 #define SCR_HEIGHT    16
 #define SCR_WIDTH     32
