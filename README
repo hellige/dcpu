@@ -31,6 +31,12 @@ driver doesn't do anything special with the 'character table' (0x8180-0x827f),
 it just ignored the contents. I also don't do anything with the so-called
 'video border' at 0x8280.
 
+The emulator supports the 'standard' 16-word keyboard ring buffer at 0x9000.
+I'm not sure what other emulators are doing, but this one will refuse to
+overflow the buffer, so it's important that your program reset each word
+to 0 after it's been read. If this is a problem for your program, it would
+be quite easy to make this behavior optional.
+
 For best colors, run in a terminal with good color support. You may have to
 fiddle around to get curses to realize your colors are good. For example, 
 try setting
