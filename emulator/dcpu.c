@@ -36,6 +36,7 @@
 #include "opcodes.h"
 
 volatile bool dcpu_break = false;
+volatile bool dcpu_die = false;
 
 static void usage(char **argv) {
   fprintf(stderr, "usage: %s [options] <image>\n", argv[0]);
@@ -43,12 +44,18 @@ static void usage(char **argv) {
   fprintf(stderr, "   -v, --version        display the version and exit\n");
   fprintf(stderr, "   -k, --khz=k          set emulator clock rate (in kHz)\n");
   fprintf(stderr, "   -e, --little-endian  image file is little-endian\n");
+  fprintf(stderr, "   -d, --debug-boot     enter debugger on boot\n");
   fprintf(stderr, "   -l, --detect-loops   "
       "enter debugger on single-instruction loop\n");
+  fprintf(stderr, "\n");
   fprintf(stderr,
       "the maximum achievable clock rate depends on the host cpu as well\n");
   fprintf(stderr,
       "as the program being run. the default is 150kHz.\n");
+  fprintf(stderr, "\n");
+  fprintf(stderr,
+      "the -e option controls the endianness of the input image only. core\n");
+  fprintf(stderr, "dump files are *always* big-endian.\n");
 } 
 
 static void handler(int signum) {
@@ -70,6 +77,7 @@ static void block_sigint() {
 int main(int argc, char **argv) {
   uint32_t khz = DEFAULT_KHZ;
   bool bigend = true;
+  bool debug = false;
   dcpu dcpu;
   dcpu.detect_loops = false;
 
@@ -80,12 +88,13 @@ int main(int argc, char **argv) {
       {"help", 0, 0, 'h'},
       {"version", 0, 0, 'v'},
       {"khz", 1, 0, 'k'},
-      {"litt-endian", 0, 0, 'e'},
+      {"debug-boot", 0, 0, 'd'},
+      {"little-endian", 0, 0, 'e'},
       {"detect-loops", 0, 0, 'l'},
       {0, 0, 0, 0},
     };
 
-    c = getopt_long(argc, argv, "hvk:el", long_options, NULL);
+    c = getopt_long(argc, argv, "hvk:del", long_options, NULL);
 
     if (c == -1) break;
 
@@ -105,6 +114,9 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 'd':
+        debug = true;
+        break;
       case 'e':
         bigend = false;
         break;
@@ -138,10 +150,10 @@ int main(int argc, char **argv) {
   dcpu_msg("mods: " DCPU_MODS "\n");
 
   dcpu_msg("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.\n");
-  dcpu_run(&dcpu);
+  dcpu_run(&dcpu, debug);
 
-  dcpu_msg("dcpu-16 halted.\n");
   dcpu_killterm();
+  puts(" * dcpu-16 halted.");
 
   return 0;
 }

@@ -96,6 +96,10 @@
 ; wasteful. fix, or at least introduce 'packed strings' for dictionary names.
 
 define(s0_, 0xf000)
+define(keybuf_, 0x9000)
+define(keybufsiz_, 0x10)
+define(vidram_, 0x8000)
+define(vidramsiz_, 0x0180)
 
 define(next,
            `set x, [y]
@@ -152,8 +156,20 @@ define(defconst, `
 ; boot...
             set sp, 0               ; return stack grows down from 0xffff
             set z, s0_              ; data stack grows down from here
+            set [curkey], 0         ; reset keyboard buffer position (see below)
+            set [curvid], 0         ; reset video ram position
+            set [curline], 0        ; reset current line start position
             set y, var_bootword     ; boot up
             next
+
+            ; we need a few variables for positions in the various memory
+            ; mapped buffers, but we need to be very sure that they get reset
+            ; to 0 on every boot. we could just stick them somewhere higher in
+            ; the address range (i.e., outside of the saved image), but just
+            ; explicitly setting them is probably safer and clearer.
+curkey:     dw 0                    ; position in keyboard buffer
+curvid:     dw 0                    ; position in video ram
+curline:    dw 0                    ; start of current line (for backspace)
 
 ; interpreter for forth words
 docol:      pushrsp(y)
@@ -481,21 +497,86 @@ zbranch.1:  add z, 1                ; pop
             dbg 0                   ; enter emulator debugger
             next
 
+
+            ; awaits a keypress. uses i and returns key in j
+readkey:    set i, [curkey]
+            add i, keybuf_
+            ife [i], 0              ; no key yet...
+            set pc, readkey
+            set j, [i]              ; read it
+            set [i], 0              ; erase it for `next' time
+            add [curkey], 1         ; advance
+            mod [curkey], keybufsiz_
+            set pc, pop
+
             defcode(key, 0, key)
             sub z, 1
-key.1:      kbd [z]                 ; fetch keypress
-            ife [z], -1             ; if no key, try again
-            set pc, key.1
-            out [z]                 ; echo it to the terminal
+            jsr readkey             ; fetch keypress
+            jsr emit_               ; echo j to the terminal
+            set [z], j
             next
 
             defcode(emit, 0, emit)
-            out [z]
-            add z, 1
+            set j, [z]              ; prep the call
+            add z, 1                ; and pop it
+            jsr emit_               ; write the char
             next
 
+            ; writes the word in j to vidram. handles scrolling, newline,
+            ; and backspace. uses register i.
+emit_:      ifn j, 0x0a             ; check nl
+            set pc, emit_.1
+            set i, [curvid]         ; erase cursor
+            add i, vidram_
+            set [i], 0
+            add [curvid], 31        ; `next' line. nb, this only works if line
+            and [curvid], -32       ; width is a power of 2
+            set [curline], [curvid] ; set start of current line (for backspace)
+            set pc, emit_.3
+emit_.1:    ifn j, 0x08             ; check bs
+            set pc, emit_.2
+            ife [curline], [curvid] ; at line start. bail.
+            set pc, emit_.3
+            ife [curline], 0        ; at start of vidram. vanishingly unlikely,
+            set pc, emit_.3         ;    but just in case... bail.
+            sub [curvid], 1         ; do the backspace
+            set i, [curvid]         ; prep rubout
+            add i, vidram_
+            set [i], 0              ; rubout the char
+            set [1+i], 0            ; rubout the cursor
+            set pc, emit_.3
+emit_.2:    set i, [curvid]         ; load `next' vidram slot
+            add i, vidram_
+            set [i], j              ; write the char
+            add [curvid], 1         ; advance
+emit_.3:    ife [curvid], vidramsiz_ ; we'll always hit the number exactly...
+            jsr scroll_
+            set i, [curvid]
+            add i, vidram_
+            set [i], 0x5f           ; show cursor
+            set pc, pop
+
+            ; scroll the screen. uses i and j.
+scroll_:    set j, vidram_          ; limit in j
+            add j, vidramsiz_
+            sub j, 32
+            set i, vidram_          ; start scrolling from line 1
+scroll_.1:  set [i], [32+i]
+            add i, 1
+            ifg j, i
+            set pc, scroll_.1
+            add j, 32               ; blank last line
+scroll_.2:  set [i], 0
+            add i, 1
+            ifg j, i
+            set pc, scroll_.2
+            sub [curvid], 32
+            sub [curline], 32
+            set pc, pop
+
             defcode(cr, 0, cr)
-            out 0x0a
+            set j, 0x0a
+            jsr emit_
             next
 
             ; ( a u1 -- u2 )
@@ -504,23 +585,21 @@ key.1:      kbd [z]                 ; fetch keypress
             add [z], a              ; limit addr in [z]
 accept.1:   ife a, [z]              ; bail if at limit
             set pc, accept.2
-accept.3:   kbd [a]                 ; read
-            ife [a], -1             ; if no key, try again
-            set pc, accept.3
+accept.3:   jsr readkey             ; fetch keypress
+            set [a], j
             ifn [a], 0x08           ; skip if not backspace/delete
             set pc, accept.4
-            out 0x08                ; handle backspace... erase from the terminal
-            out 0x20
-            out 0x08
+            jsr emit_               ; erase from the terminal
             ifg a, [1+z]            ; backspace input buffer, if possible
             sub a, 1
             set pc, accept.3        ; ...and try again
 accept.4:   ife [a], 0x0a           ; bail if newline
             set pc, accept.2
-            out [a]                 ; echo it to the terminal
+            jsr emit_               ; echo it to the terminal, key is still in j
             add a, 1
             set pc, accept.1
-accept.2:   out 0x20                ; echo a space
+accept.2:   set j, 0x20             ; echo a space
+            jsr emit_
             add z, 1                ; pop 1 arg
             sub a, [z]              ; compute length
             set [z], a              ; push it
@@ -533,7 +612,8 @@ accept.2:   out 0x20                ; echo a space
             add [z], a              ; limit addr in [z]
 type.1:     ife a, [z]              ; bail if at limit
             set pc, type.2
-            out [a]                 ; write
+            set j, [a]              ; write char
+            jsr emit_
             add a, 1
             set pc, type.1
 type.2:     add z, 2                ; pop args
@@ -895,47 +975,25 @@ interp_.2:  sub z, 1                ; got a number. push it.
             set [z], i
 interp_.3:  next
 
-; quit is the traditional name for the outer interpreter loop
-            ; TODO check refill result (although it can't currently fail)
-            defword(quit, 0, quit)
-            dw cr                   ; start a fresh line
-            dw r0, fetch, rspstore  ; empty return stack
-            dw refill, drop         ; refill input buffer
-            dw interpret, zequ      ; run
-            dw zbranch, 2           ; check result
-            dw err
-            dw prompt               ; display prompt
-            dw branch, -9           ; again
 
-err:        dw err_
-err_:       out 0x20
-            out 0x45
-            out 0x52
-            out 0x52
-            out 0x4f
-            out 0x52
-            next
-
-prompt:     dw prompt_
-prompt_:    out 0x20
-            out 0x6f
-            out 0x6b
-            out 0x0a
-            next
-
-; boot is just like quit, but without the prompts...
+; boot is basically a simplified quit, without the prompts...
 ; we just use this to achieve a quiet bootup while executing forth.ft.
             defword(boot, 0, boot)
-            dw r0, fetch, rspstore  ; empty return stack
             dw refill, drop         ; refill input buffer
             dw interpret, zequ      ; run
             dw zbranch, 2           ; check result
             dw err
             dw branch, -8           ; again
 
+; just a minimal indication that an error occurred during boostrap
+err:        dw err_
+err_:       set j, 0x45
+            jsr emit_
+            next
+
 ; we indirect the actual boot through a variable, so that we can reset
 ; the boot word before saving the final image.
-            defvar(boot-word, bootword, quit)
+            defvar(boot-word, bootword, boot)
 ; define h down here, so it's clear where it's coming from...
             defvar(h, h, h_init)
 ; define latest last, so that it can start out pointing to itself.

@@ -54,8 +54,6 @@ void dcpu_initterm(void) {
   // should be done prior to initscr, and it doesn't matter if we do it twice
   initscr();
   cbreak();
-  noecho();
-  timeout(0);
   keypad(stdscr, true);
   term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
   scrollok(term.dbgwin, true);
@@ -65,17 +63,24 @@ void dcpu_initterm(void) {
 }
 
 void dcpu_killterm(void) {
-  mvprintw(LINES - 1, 0, "press a key...\n");
-  timeout(-1);
-  getch();
   endwin();
 }
 
 void readkey(dcpu *dcpu) {
   int c = getch();
+  // always check for ctrl-d, even if kbd buf is full.
+  if (c == 0x04) {
+    // ctrl-d. exit.
+    dcpu_die = true;
+    return;
+  }
+  if (dcpu->ram[KBD_ADDR + term.keypos]) {
+    dcpu_msg("refusing to overflow kbd ring buffer!\n");
+    ungetch(c);
+    return;
+  }
   switch (c) {
     case ERR: return; // no key. no problem.
-    case 0x04: dcpu_break = true; return; // ctrl-d. exit.
 
     // remap bs and del to bs, just in case
     case KEY_BACKSPACE: c = 0x08; break;

@@ -36,7 +36,7 @@ typedef uint16_t u16;
 typedef uint64_t tstamp_t;
 
 #define DCPU_VERSION  "1.1-mh"
-#define DCPU_MODS     "+out +kbd +img +die"
+#define DCPU_MODS     "+img +die"
 #define COREFILE_NAME "core.img"
 #define DEFAULT_KHZ   150
 
@@ -78,7 +78,7 @@ extern tstamp_t dcpu_now();
 extern bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz,
   bool bigend);
 extern void dcpu_coredump(dcpu *dcpu, uint32_t limit);
-extern void dcpu_run(dcpu *dcpu);
+extern void dcpu_run(dcpu *dcpu, bool debugboot);
 extern action_t dcpu_step(dcpu *dcpu);
 
 // debug.c
@@ -96,6 +96,7 @@ extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
 extern void dcpu_killterm(void);
 extern volatile bool dcpu_break;
+extern volatile bool dcpu_die;
 
 
 #endif

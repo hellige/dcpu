@@ -59,8 +59,6 @@ enum opcode {
   apply(OP_NB_NON, "xxx") \
   apply(OP_NB_JSR, "jsr") \
   /* custom ops */ \
-  apply(OP_NB_OUT, "out") /* ascii char to console */ \
-  apply(OP_NB_KBD, "kbd") /* ascii char from keybaord, store in a */ \
   apply(OP_NB_IMG, "img") /* save core image to core.img, up to address in a */ \
   apply(OP_NB_DIE, "die") /* exit emulator */ \
   apply(OP_NB_DBG, "dbg") /* enter the emulator debugger */

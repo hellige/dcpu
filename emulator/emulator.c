@@ -338,24 +338,6 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
       dcpu->pc = a;
       break;
 
-      // TODO kill
-    case OP_NB_OUT:
-      //putchar(a);
-      //fflush(stdout);
-      break;
-
-      // TODO kill
-    case OP_NB_KBD: {
-      // will set dest to -1 if no key is available...
-      int c = getch();
-      // since we're non-canon, we need to check for ctrl-d ourselves...
-      if (c == 0x04) return A_EXIT;
-      // we'll also map delete to backspace to avoid goofy terminals...
-      if (c == 0x7f) c = 0x08; // TODO still needed with curses?
-      set(dest, c);
-      break;
-    }
-
     case OP_NB_IMG:
       dcpu_coredump(dcpu, a);
       break;
@@ -392,12 +374,13 @@ action_t dcpu_step(dcpu *dcpu) {
 }
 
 
-void dcpu_run(dcpu *dcpu) {
+void dcpu_run(dcpu *dcpu, bool debugboot) {
+  bool running = true;
+  if (debugboot) running = dcpu_debug(dcpu);
   dcpu_msg("running...\n");
   dcpu_runterm();
   dcpu->nexttick = dcpu_now() + dcpu->tickns;
-  bool running = true;
-  while (running) {
+  while (running && !dcpu_die) {
     action_t action = dcpu_step(dcpu);
     if (action == A_EXIT) running = false;
     if (action == A_BREAK || dcpu_break) {
