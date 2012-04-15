@@ -48,7 +48,7 @@ typedef uint64_t tstamp_t;
 #define VRAM_ADDR     0x8000
 #define SCR_HEIGHT    16
 #define SCR_WIDTH     32
-#define KBD_BAUD      2000
+#define KBD_BAUD      4000
 #define KBD_ADDR      0x9000
 #define KBD_BUFSIZ    16
 
