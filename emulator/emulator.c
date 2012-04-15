@@ -205,8 +205,11 @@ static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects) {
 
   // register or register[+offset] deref
   uint8_t reg = arg & 0x7;
-  if (arg & 0x10)
-    *addr = &dcpu->ram[dcpu->reg[reg] + next(dcpu, effects)]; // TODO: what if reg is PC?
+  if (arg & 0x10) {
+    // compute the address as a separate variable to guarantee wrap on overflow
+    u16 address = dcpu->reg[reg] + next(dcpu, effects); // TODO: what if reg is PC?
+    *addr = &dcpu->ram[address];
+  }
   else if (arg & 0x8)
     *addr = &dcpu->ram[dcpu->reg[reg]];
   else
@@ -229,8 +232,14 @@ static inline void skip(dcpu *dcpu) {
 }
 
 
-static void exec_basic(dcpu *dcpu, u16 instr) {
+static action_t exec_nonbasic(dcpu *dcpu, u16 instr);
+
+static action_t execute(dcpu *dcpu, u16 instr) {
   u16 *dest;
+
+  // dispatch non-basic instruction before decoding args
+  if (!opcode(instr)) return exec_nonbasic(dcpu, instr);
+
   u16 a = decode_arg(dcpu, arg_a(instr), &dest, true);
   u16 b = decode_arg(dcpu, arg_b(instr), NULL, true);
 
@@ -324,6 +333,8 @@ static void exec_basic(dcpu *dcpu, u16 instr) {
       await_tick(dcpu);
       break;
   }
+
+  return A_CONTINUE;
 }
 
 
@@ -361,11 +372,7 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
 action_t dcpu_step(dcpu *dcpu) {
   u16 oldpc = dcpu->pc;
   u16 instr = next(dcpu, true);
-  int result = A_CONTINUE;
-  if (opcode(instr) == OP_NON)
-    result = exec_nonbasic(dcpu, instr);
-  else
-    exec_basic(dcpu, instr);
+  int result = execute(dcpu, instr);
   if (dcpu->detect_loops && dcpu->pc == oldpc) {
     dcpu_msg("loop detected.\n");
     return A_BREAK;
