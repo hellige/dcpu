@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "usage: $0 <core.img>"
+  echo "  swaps high and low bytes of each 16-bit word."
+  echo "  writes output in out.img."
+  exit
+fi
+
+cat $1 | dd conv=swab 2>/dev/null > out.img
+
