@@ -187,6 +187,7 @@ docol:      pushrsp(y)
             defvar(r0, r0, 0)
             defvar(s0, s0, s0_)
             defvar(base, base, 10)
+            defvar(conattr, conattr, 0)
 
 ; now we start right in with a bunch of primitive words...
 
@@ -547,7 +548,9 @@ emit_.1:    ifn j, 0x08             ; check bs
             set pc, emit_.3
 emit_.2:    set i, [curvid]         ; load `next' vidram slot
             add i, vidram_
-            set [i], j              ; write the char
+            set [i], [var_conattr]  ; set terminal attributes
+            shl [i], 7
+            bor [i], j              ; write the char
             add [curvid], 1         ; advance
 emit_.3:    ife [curvid], vidramsiz_ ; we'll always hit the number exactly...
             jsr scroll_

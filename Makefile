@@ -23,7 +23,7 @@ MAIN_S = dcpu.c debugger.c disassembler.c emulator.c opcodes.c terminal.c
 MAIN_O = $(patsubst %.c,out/%.o,$(MAIN_S))
 
 ALL_O = $(MAIN_O)
-ALL_T = dcpu forth.img
+ALL_T = dcpu goforth.img
 
 
 default: all
@@ -39,18 +39,18 @@ $(MAIN_O):out/%.o: $(MAIN_DIR)/%.c
 	$(CC) -c -o $@ $(CFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" \
 	    -MT"$(@:%.o=%.d)" $<
 
-boot.img: forth.dasm masm
-	m4 $< > forth.s
-	./masm forth.s $@
+out/boot.img: goforth.dasm masm
+	m4 $< > out/goforth.s
+	./masm out/goforth.s $@
 
-forth.img: forth.ft boot.img dcpu
-	cat forth.ft | ./dcpu -k 10000 boot.img > /dev/null
+goforth.img: goforth.ft out/boot.img dcpu
+	cat goforth.ft | ./dcpu -k 10000 out/boot.img > /dev/null
 	mv core.img $@
 
 clean:
 	-rm -f $(ALL_T) $(ALL_O)
-	-rm -f boot.img
-	-rm -f forth.s
+	-rm -f out/boot.img
+	-rm -f out/goforth.s
 
 spotless: clean
 	-rm -f $(ALL_O:.o=.d)

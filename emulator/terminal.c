@@ -80,6 +80,7 @@ void dcpu_initterm(void) {
       for (int j = 0; j < 8; j++)
         init_pair(color(i, j), colors[i], colors[j]);
   }
+  dcpu_msg("terminal colors: %d\n", COLORS);
 }
 
 void dcpu_killterm(void) {

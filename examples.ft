@@ -1,9 +1,0 @@
-\ here's a replacement repl that checks after each line for stack underflow.
-\ surprisingly, because of the memory layout, this simple change is enough to
-\ catch a lot of problems before the heap is damaged.
-\ to use it, just run 'quit2'
-: quit2   cr  r0 @ rsp!  begin refill drop
-    interpret 0= if abort" ERROR" then  
-    dsp@ s0 @ u> if abort" stack underflow" then
-    ." ok " cr again ;
-

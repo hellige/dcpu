@@ -1,17 +1,60 @@
 DCPU-16 Playground
 
 This is an emulator, assembler, and a (still primitive) implementation of
-the Forth programming language for notch's DCPU-16.
+the Forth programming language for notch's DCPU-16. See
+http://0x10c.com/doc/dcpu-16.txt for details.
 
-See: http://0x10c.com/doc/dcpu-16.txt
+There are also a couple of useful scripts for swapping endianness of binary
+images and dumping to hex in a format supported by some other emulators.
 
-The emulator is written in C, the assembler (masm) is Python, and the real fun
-starts in forth.dasm and forth.ft.
+
+Quick Start
+
+To build, just run:
+  make
+To run the goforth interpreter image:
+  ./goforth
+Other images can be run with:
+  ./dcpu blah.img
+For options, just try:
+  ./dcpu
+
+
+The Emulator
+
+The emulator is written in C with curses for video display. It's well tested
+and has a number of nice options. It builds on both Mac OS and Linux with gcc.
+
+I think it's about as close to the current consensus specs as is achievable
+with ncurses. Obviously bitmapped graphics aren't supported, so the terminal
+driver doesn't do anything special with the 'character table' (0x8180-0x827f),
+it just ignored the contents. I also don't do anything with the so-called
+'video border' at 0x8280.
+
+For best colors, run in a terminal with good color support. You may have to
+fiddle around to get curses to realize your colors are good. For example, 
+try setting
+  TERM=xterm-256color
+if you're not having any luck. You can use
+  ./dcpu colortest.img
+to test things out.
+
+
+goforth
+
+  'i figured i owned just dark skies, and that darkness fit me best.
+   go, folks, go forth. trust your brain! trust your body!'
+
+The real fun starts in goforth.dasm and goforth.ft. goforth is an
+implementation of the Forth programming language for DCPU-16. It's still
+primitive and there's more work to be done, but it's already quite usable.
+
+goforth runs on at least one other emulator (interfect's dcpu-emu:
+https://bitbucket.org/interfect/dcpu-emu) and I am most interested in
+hearing whether it works on others.
 
 In order to get up and running, I've augmented the DCPU instruction set with 
-four new instructions (all in non-basic format):
-  kbd: check for a keypress, store the ascii code in the 'a' argument
-  out: emit the ascii code in the 'a' argument to the terminal
+three new instructions (all in non-basic format):
   img: dump ram to the file core.img, from address 0x0000 to (but not
        including) the address in the 'a' argument. if 'a' is 0, dump the
        entire heap (0x0000 to 0x10000)
@@ -20,17 +63,19 @@ four new instructions (all in non-basic format):
 The latter two instructions are only used in special cases and are easily 
 avoided. img is needed only to bootstrap the forth image.
 
-The first two, however, are required in order to both bootstrap and run
-the provided forth image, so forth.img is not portable to other emulators
-unless they implement kbd and out.
+THE BOOTSTRAPPED IMAGE SHOULD RUN ON ANY EMULATOR.
+
+
+The Assembler
+
+The assembler (masm) is in Python and has a number of idiosyncrasies. The
+syntax has diverged from the consensus DCPU-16 assembler syntax in some
+rather pointless ways, and it's quite limited. It works for my purposes,
+but I don't recommend that you use it.
+
+
+Credits
 
 The built-in disassembler includes code from Brian Swetland's DCPU-16 emulator,
 see the file disassembler.c for license and copyright info.
-
-To build, just run:
-  make
-To run the forth.img:
-  ./forth
-Other images can be run with:
-  ./dcpu blah.img
 
