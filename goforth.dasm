@@ -96,6 +96,7 @@
 ; wasteful. fix, or at least introduce 'packed strings' for dictionary names.
 
 define(s0_, 0xf000)
+define(r0_, 0x0000)
 define(keybuf_, 0x9000)
 define(keybufsiz_, 0x10)
 define(vidram_, 0x8000)
@@ -154,7 +155,8 @@ define(defconst, `
 ')
 
 ; boot...
-            set sp, 0               ; return stack grows down from 0xffff
+            ; return stack grows down from 0xffff
+            ; but sp already starts at 0, so we might as well assume it
             set z, s0_              ; data stack grows down from here
             set [curkey], 0         ; reset keyboard buffer position (see below)
             set [curvid], 0         ; reset video ram position
@@ -184,7 +186,7 @@ docol:      pushrsp(y)
             defvar(srcptr, srcptr, 0)
             defvar(srclen, srclen, 0)
             defvar(state, state, 0)
-            defvar(r0, r0, 0)
+            defvar(r0, r0, r0_)
             defvar(s0, s0, s0_)
             defvar(base, base, 10)
             defvar(conattr, conattr, 0)
@@ -556,7 +558,9 @@ emit_.3:    ife [curvid], vidramsiz_ ; we'll always hit the number exactly...
             jsr scroll_
             set i, [curvid]
             add i, vidram_
-            set [i], 0x5f           ; show cursor
+            set [i], [var_conattr]  ; set terminal attributes
+            shl [i], 7
+            bor [i], 0x5f           ; show cursor
             set pc, pop
 
             ; scroll the screen. uses i and j.

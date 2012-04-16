@@ -149,8 +149,10 @@
 \ catch a lot of problems before the heap is actually damaged.
 : quit   cr  r0 @ rsp!
     begin
-      refill 0= if abort" failed to refill input buffer" then
-      interpret 0= if abort" no such word" then
+      224 conattr ! cr refill 320 conattr !
+      0= if abort" failed to refill input buffer" then
+      64 conattr ! interpret 320 conattr !
+      0= if abort" no such word" then
       dsp@ s0 @ u> if abort" stack underflow" then
       ." ok " cr
     again ;
@@ -160,7 +162,6 @@
     64 conattr ! ." this is " 
     320 conattr ! ." goforth"
     64 conattr ! ." . enjoy."
-    0 conattr ! cr
     quit ;
 ' boot boot-word !
 

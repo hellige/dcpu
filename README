@@ -43,7 +43,10 @@ try setting
   TERM=xterm-256color
 if you're not having any luck. You can use
   ./dcpu colortest.img
-to test things out.
+to test things out. Apparently ncurses 5 doesn't really support 256 distinct
+color pairs (well, it supports 256, but the first pair is reserved). So if
+you have ncurses 5 (most Linux distros, it seems), white-on-white will probably
+appear as your default terminal colors instead.
 
 
 goforth
@@ -60,19 +63,21 @@ supports I/O. (It'll run on others, too, but won't do much...)
 
 goforth has been tested on several other emulators:
   * interfect's dcpu-emu: https://bitbucket.org/interfect/dcpu-emu
-    runs correctly
+    Runs correctly.
   * DCPU Studio: http://badsector.github.com/dcpustud
-    seems to run correctly (with 'use big endian words' and 'use keyboard
-	buffer' options), but I can't get figure out how to get keyboard input
-	into the DCPU-16, the emulator keeps interpreting my keypresses itself.
+    Seems to run correctly (with 'use big endian words' and 'use keyboard
+    buffer' options), but keyboard input is broken. I get mostly the right
+    keypresses, but something about the buffer management is screwy and I
+    end up losing sync, having to press keys twice, etc. I don't want to invest
+    more time in keyboard compatibility until there's actually a spec.
   * deNULL's web emulator: http://dcpu.ru
-    seems to run correctly here, too, but the keyboard input is significantly
-	different (all letters are caps, punctuation doesn't work) so it's a little
-	hard to do too much testing. I don't want to invest more time in keyboard
-	compatibility until there's actually a spec.
+    Seems to run correctly here, too, but the keyboard input is significantly
+    different (all letters are caps, punctuation doesn't work) so it's a little
+    hard to do too much testing.
   * http://0x10co.de
-    again, everything looks good, but keyboard input is broken, so it's hard
-	to do much. And again, I'm going to wait for a spec.
+    Again, everything looks good, but keyboard input is (again, but
+    differently) broken, so it's hard to do much. And again, I'm going to wait
+    for a spec.
 I am most interested in hearing whether it works on other emulators.
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 

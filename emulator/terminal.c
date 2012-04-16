@@ -46,8 +46,8 @@ static struct term_t term;
 
 static inline u16 color(int fg, int bg) {
   return COLORS > 8
-    ? fg * 16 + bg
-    : (fg % 8) * 8 + (bg % 8);
+    ? fg * 16 + bg + 1
+    : (fg % 8) * 8 + (bg % 8) + 1;
 }
 
 void dcpu_initterm(void) {
@@ -80,7 +80,8 @@ void dcpu_initterm(void) {
       for (int j = 0; j < 8; j++)
         init_pair(color(i, j), colors[i], colors[j]);
   }
-  dcpu_msg("terminal colors: %d\n", COLORS);
+  dcpu_msg("terminal colors: %d, pairs %d, %s change colors: \n", COLORS,
+      COLOR_PAIRS, can_change_color() ? "*can*" : "*cannot*");
 }
 
 void dcpu_killterm(void) {
@@ -140,13 +141,16 @@ static void draw(u16 word, u16 row, u16 col) {
   move(row+1, col+1);
 
   char letter = word & 0x7f;
+  bool blink = word & 0x80;
   char fg = word >> 12;
   char bg = (word >> 8) & 0xf;
-  bool blink = word & 0x80;
 
   if (!letter) letter = ' ';
 
-  attrset(COLOR_PAIR(color(fg, bg)));
+  // use color_set() rather than COLOR_PAIR() since we may have more than 256
+  // colors. unfortunately that doesn't really solve the problem, since every
+  // linux that i can find still doesn't ship ncurses 6. how sad.
+  color_set(color(fg, bg), NULL);
   if (blink) attron(A_BLINK);
   addch(letter);
 }
