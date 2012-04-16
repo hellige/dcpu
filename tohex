@@ -7,4 +7,4 @@ if [ -z "$1" ]; then
   exit
 fi
 
-cat $1 | dd conv=swab 2>/dev/null | /usr/bin/od -v -An -tx2 -w2 | sed -e 's/ //' > out.hex
+cat $1 | dd conv=swab 2>/dev/null | /usr/bin/od -v -An -tx2 -w2 | sed -e 's/ //'

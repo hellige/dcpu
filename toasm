@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "usage: $0 <core.img>"
+  echo "  'asm' dump of dcpu image, suitable for emulators that require "
+  echo "  programs in source form. doesn't even attempt to disassemble "
+  echo "  the image. just dumps the whole thing as literal data."
+  exit
+fi
+
+cat $1 | dd conv=swab 2>/dev/null | /usr/bin/od -v -An -tx2 -w16 | sed -e 's/^ /  DAT 0x/' -e 's/\([a-f0-9]\) /\1, 0x/g'

@@ -55,11 +55,27 @@ The real fun starts in goforth.dasm and goforth.ft. goforth is an
 implementation of the Forth programming language for DCPU-16. It's still
 primitive and there's more work to be done, but it's already quite usable.
 
-goforth runs on at least one other emulator (interfect's dcpu-emu:
-https://bitbucket.org/interfect/dcpu-emu) and I am most interested in
-hearing whether it works on others.
+The bootstrapped goforth image should run on any DCPU-16 emulator that
+supports I/O. (It'll run on others, too, but won't do much...)
 
-In order to get up and running, I've augmented the DCPU instruction set with 
+goforth has been tested on several other emulators:
+  * interfect's dcpu-emu: https://bitbucket.org/interfect/dcpu-emu
+    runs correctly
+  * DCPU Studio: http://badsector.github.com/dcpustud
+    seems to run correctly (with 'use big endian words' and 'use keyboard
+	buffer' options), but I can't get figure out how to get keyboard input
+	into the DCPU-16, the emulator keeps interpreting my keypresses itself.
+  * deNULL's web emulator: http://dcpu.ru
+    seems to run correctly here, too, but the keyboard input is significantly
+	different (all letters are caps, punctuation doesn't work) so it's a little
+	hard to do too much testing. I don't want to invest more time in keyboard
+	compatibility until there's actually a spec.
+  * http://0x10co.de
+    again, everything looks good, but keyboard input is broken, so it's hard
+	to do much. And again, I'm going to wait for a spec.
+I am most interested in hearing whether it works on other emulators.
+
+In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
   img: dump ram to the file core.img, from address 0x0000 to (but not
        including) the address in the 'a' argument. if 'a' is 0, dump the
@@ -69,7 +85,7 @@ three new instructions (all in non-basic format):
 The latter two instructions are only used in special cases and are easily 
 avoided. img is needed only to bootstrap the forth image.
 
-THE BOOTSTRAPPED IMAGE SHOULD RUN ON ANY EMULATOR.
+ONCE AGAIN, THE BOOTSTRAPPED IMAGE WILL RUN ON ANY EMULATOR.
 
 
 The Assembler
