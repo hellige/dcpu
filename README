@@ -28,7 +28,7 @@ and has a number of nice options. It builds on both Mac OS and Linux with gcc.
 I think it's about as close to the current consensus specs as is achievable
 with ncurses. Obviously bitmapped graphics aren't supported, so the terminal
 driver doesn't do anything special with the 'character table' (0x8180-0x827f),
-it just ignored the contents. I also don't do anything with the so-called
+it just ignores the contents. I also don't do anything with the so-called
 'video border' at 0x8280.
 
 The emulator supports the 'standard' 16-word keyboard ring buffer at 0x9000.
