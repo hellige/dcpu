@@ -1,0 +1,15 @@
+; this is a dcpu-16 machine code quine: it replicates itself into the
+; immediately following ram and then continues executing into the new
+; copy. of course it eventually fills ram with copies of itself and 
+; wraps, and will run forever.
+;
+; this quine is 9 words long. can you define a shorter one?
+
+  set a, pc
+  sub a, 1
+  set b, a
+  add b, 9
+  set [9+a], [a]
+  add a, 1
+  ifn a, b
+  sub pc, 5
