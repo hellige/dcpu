@@ -62,6 +62,10 @@ The bootstrapped goforth image should run on any DCPU-16 emulator that
 supports I/O. (It'll run on others, too, but won't do much...)
 
 goforth has been tested on several other emulators:
+  * Notch's 'official' prototype, from http://dcpu.com/highnerd
+    goforth runs correctly in this emulator, and you can play with it
+	online here: http://matt.immute.net/files/goforth
+	(This gives some evidence that my emulator is in good shape as well!)
   * interfect's dcpu-emu: https://bitbucket.org/interfect/dcpu-emu
     Runs correctly.
   * DCPU Studio: http://badsector.github.com/dcpustud
