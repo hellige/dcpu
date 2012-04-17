@@ -179,6 +179,41 @@ docol:      pushrsp(y)
             add y, 1                ; which is one word after the code field
             next
 
+; interpreter for does> words. this is some funky business... the obvious way
+; to implement does> is just to compile the address of dodoes in the code field
+; (i.e., in place of docol) and have it look up the address of the does-handler
+; in the cell following x. but since it's nice if does> works on any kind of
+; word, then the obvious solution is to change docol to 'add y, 2' and waste a
+; cell of storage in every word. on a resource-constrained machine, this is a
+; major bummer. so, instead, for each instance of does>, we create a dispatch
+; jsr instruction at the start of the does-handler, just prior to the start of
+; the compiled forth words. does> then places the address of this jsr in the
+; code field of the child word, and dodoes gets its does-handler address on the
+; regular 'hardware' stack. and at this point, it's probably easier just to see
+; it...
+; note: this whole trick is much simpler since everything is just 16-bit cells.
+; we don't have to worry much about alignment, funky instruction sizes, etc.
+dodoes:     set a, pop              ; stash the word following the jsr dispatch
+            pushrsp(y)              ; now that 'a' is safe, push y
+            sub z, 1                ; push the data field of the child word
+            set [z], x
+            add [z], 1
+            set y, a                ; and now begin executing the does> body
+            next
+
+            ; and here's the funky little piece of code that compiles the
+            ; actual dispatch instruction for the does-handler.
+            defcode(create-does, 0, createdoes)
+            set i, dhcode_          ; start of does-handler dispatch
+cdoes.1:    set j, [i]              ; setup...
+            jsr comma_              ; compile the word in j
+            add i, 1
+            ifg dhend_, i           ; until the end of the dispatch
+            set pc, cdoes.1
+            next
+dhcode_:    jsr dodoes
+dhend_:     ; just in case the jsr is 2 words...
+
 ; built-in constants and variables...
 ; 'latest' and 'h' are defined at the very end, so they can be properly initialized...
             defconst(tib, tib, s0_)
