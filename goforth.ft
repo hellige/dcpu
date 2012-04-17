@@ -168,7 +168,7 @@ variable quitword
       64 conattr ! interpret 320 conattr !
       0= if abort" no such word" then
       dsp@ s0 @ u> if abort" stack underflow" then
-      ." ok " cr
+      space ." ok " cr
     again ;
 \ and set the variable to tie the knot with abort
 ' quit quitword !
