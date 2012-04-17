@@ -56,6 +56,16 @@
 \ : test 65 emit my;
 \ test test test
 
+\ this implementation of does> can only be used within a : definition, as
+\ in ans, and unlike as in, for example, gforth.
+: setdoes   latest @ >cfa ! ;
+: does>
+  compile lit here 0 ,
+  compile setdoes
+  compile exit
+  here swap !
+  create-does ]
+  ; immediate
 
 : recurse   latest @ >cfa , ; immediate
 
@@ -136,9 +146,9 @@
 
 
 \ abort is just a stack-clearing quit, but since we haven't defined
-\ quit yet, we need to indirect through a variable.
-\ TODO use a var! for now, dynamic lookup...
-: abort   s0 @ dsp! S" quit" find drop execute ;
+\ quit yet, we need to indirect through a variable (or defer, once we have it.)
+variable quitword
+: abort   s0 @ dsp!  quitword @ execute ;
 \ abort" is similar, but prints a message and only fires if n is non-zero
 : doabrt  ( n a u -- ) rot if cr ." ABORT: " type abort else 2drop then ;
 : abort"  ( n -- )  [compile] S" compile doabrt ; immediate
@@ -156,6 +166,8 @@
       dsp@ s0 @ u> if abort" stack underflow" then
       ." ok " cr
     again ;
+\ and set the variable to tie the knot with abort
+' quit quitword !
 
 \ the real boot word
 : boot  ( never returns ) space

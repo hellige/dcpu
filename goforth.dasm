@@ -32,17 +32,34 @@
 ;   http://rwmj.wordpress.com/2010/08/07/jonesforth-git-repository/
 ; although jonesforth has a number of quirks (and so does this one) and
 ; things diverge pretty quickly.
-
-; m4 is a pretty broke-ass way to get macros, but i want to invest as little
-; as possible in the dcpu assembler. i'd rather bootstrap everything from
-; within forth as soon as possible...
-
-; registers:
+;
+; in any case, this is a 'classic' indirect-threaded forth, in which
+; code fields contain pointers to executable machine code. i've given
+; some thought to direct threading, but given the rather bizarre cost
+; model of the dcpu-16, it doesn't seem to me that it would actually
+; be significantly faster, and it would definitely be more complex
+; (since, for example, code words might have to be larger than 1 cell).
+; the specific dcpu-16 characteristics that matter here are:
+;    - memory access is literally free (a single cycle)...
+;    - ... EXCEPT when you're decoding the instruction stream, in which
+;      case there's a penalty of 1 cycle per word
+;    - addition is free (0 extra cycles) when it's used to compute an address
+;      offset for an operand, otherwise it's 2 extra cycles
+; direct threading might be more of a win if the forth ip points to the
+; currently executing word rather than to the *next* word, but that would
+; be a more significant change, and i'd have to think harder about the
+; ramifications. maybe some other time...
+;
+; register mappings:
 ;  SP  return stack pointer (rsp sometimes below)
 ;  Z   data stack pointer
 ;  Y   forth instruction pointer (ip)
 ;  X   forth codeword pointer
-
+;
+; notice we use the 'hardware' stack for the return stack and explicitly
+; manage the data stack. we also do not keep the top of the data stack
+; in a register. both of these decisions may be worth revisiting.
+;
 ; dictionary entries:
 ;     +----------------------+
 ;     | 16 link to prev word |
@@ -91,6 +108,10 @@
 ;     | core image           |
 ;     +----------------------+
 
+; finally, m4 is a pretty broke-ass way to get macros, but i want to invest as
+; little as possible in the dcpu assembler. i'd rather bootstrap everything from
+; within forth as soon as possible...
+
 ; TODO all the io primitives and the dictionary use whole words for ascii chars.
 ; this is much easier in the absence of byte addressing, but it's also terribly
 ; wasteful. fix, or at least introduce 'packed strings' for dictionary names.
@@ -119,39 +140,40 @@ define(f_immed, 0x80)
 define(f_hidden, 0x20)
 define(f_lenmask, 0x1f)
 
-; defword(forthname, flags, asmname)
-define(defword, `
+; defheader(forthnam, flags, asmname)
+; all the words use this macro for their header. they're all the same
+; up to the code field
+define(defheader, `
 name_$3:    dw link
             define(`link', name_$3)
             dw eval($2 | len($1))
             dzw "$1"
-$3:         dw docol')
+$3:         ')
+
+; defword(forthname, flags, asmname)
+define(defword, `
+            defheader($1, $2, $3)
+            dw docol')
             ; word ptrs follow...
 
 ; defcode(forthname, flags, asmname)
 define(defcode, `
-name_$3:    dw link
-            define(`link', name_$3)
-            dw eval($2 | len(`$1'))
-            dzw "$1"
-$3:         dw code_$3
+            defheader($1, $2, $3)
+            dw code_$3
 code_$3:')  ; code follows...
 
 ; defvar(forthname, asmname, value)
 define(defvar, `
-            defcode($1, 0, $2)
-            sub z, 1
-            set [z], var_$2
-            next
+            defheader($1, 0, $2)
+            dw dovar
 var_$2:     dw $3
 ')
 
 ; defconst(forthname, asmname, value)
 define(defconst, `
-            defcode($1, 0, $2)
-            sub z, 1
-            set [z], $3
-            next
+            defheader($1, 0, $2)
+            dw docon
+            dw $3
 ')
 
 ; boot...
@@ -173,10 +195,23 @@ curkey:     dw 0                    ; position in keyboard buffer
 curvid:     dw 0                    ; position in video ram
 curline:    dw 0                    ; start of current line (for backspace)
 
+
+; interpreter for variables (and newly created words, per ans)
+dovar:      sub z, 1                ; push data field address
+            set [z], x              ; which is one cell after the code field
+            add [z], 1
+            next
+
+; interpreter for constants
+docon:      sub z, 1                ; push data field contents
+            add x, 1                ; data field is one cell after the code field
+            set [z], [x]
+            next
+
 ; interpreter for forth words
 docol:      pushrsp(y)
             set y, x                ; set ip to word definition...
-            add y, 1                ; which is one word after the code field
+            add y, 1                ; which is one cell after the code field
             next
 
 ; interpreter for does> words. this is some funky business... the obvious way
@@ -191,8 +226,21 @@ docol:      pushrsp(y)
 ; code field of the child word, and dodoes gets its does-handler address on the
 ; regular 'hardware' stack. and at this point, it's probably easier just to see
 ; it...
+;     +----------------------+
+;     | 16 link to prev word |
+;     | 16 flags/name length |          DODOES
+;     | 16 ... name          |         +------------------------+
+;  +--- 16 ptr to dispatch   |  +----->| 16 ... machine code    |
+;  |  | 16 ... ptr to words  |  |      |   (does> code in peek) |
+;  |  | 16 ptr to EXIT       |  |      | 16 ... NEXT            |
+;  +->| 16/32  jsr DODOES   ----+      +------------------------+
+;     | 16 ... ptr to words  |
+;     | 16 ptr to EXIT       |
+;     +----------------------+
 ; note: this whole trick is much simpler since everything is just 16-bit cells.
-; we don't have to worry much about alignment, funky instruction sizes, etc.
+; we don't have to worry much about alignment, funky instruction sizes, etc.,
+; and there's no memory protection, so we can jit the does dispatch wherever
+; we want.
 dodoes:     set a, pop              ; stash the word following the jsr dispatch
             pushrsp(y)              ; now that 'a' is safe, push y
             sub z, 1                ; push the data field of the child word
@@ -807,6 +855,7 @@ numb_.end:  ife pop, 0              ; if positive, we're done
             dw here, swap           ; set up to copy, stack ( src dest n -- )
             dw dup, allot           ; advance h first
             dw move                 ; copy name
+            dw lit, dovar, comma    ; compile the cfa
             dw exit
 
             ; ( addr -- )  toggles hidden given dict entry
@@ -900,8 +949,10 @@ compile_.3: next
 
             defword(:, 0, colon)
             dw create               ; make the dict entry
-            dw lit, docol, comma    ; append the codeword
-            dw latest, fetch, hidden; hide it
+            dw latest, fetch        ; grab the addr of created word
+            dw dup, hidden          ; hide it
+            dw tocfa, lit, docol    ; set the codeword
+            dw swap, store
             dw rbrac                ; compile
             dw exit
 
@@ -911,6 +962,18 @@ compile_.3: next
             dw lbrac                ; stop compiling
             dw exit
 
+            defword(variable, 0 , variable)
+            dw create               ; make the dict entry
+            dw lit, 1, allot        ; reserve the space
+            dw exit
+
+            defword(constant, 0 , constant)
+            dw create               ; make the dict entry
+            dw lit, docon           ; set the codeword
+            dw latest, fetch, tocfa
+            dw store
+            dw comma                ; compile the constant
+            dw exit
 
 ; dictionary
             ; ( a u -- 0 0  |  xt 1  |  xt -1 )
