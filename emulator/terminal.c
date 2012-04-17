@@ -96,8 +96,7 @@ void readkey(dcpu *dcpu) {
     dcpu_die = true;
     return;
   }
-  if (dcpu->ram[KBD_ADDR + term.keypos]) {
-    dcpu_msg("refusing to overflow kbd ring buffer!\n");
+  if (c != -1 && dcpu->ram[KBD_ADDR + term.keypos]) {
     ungetch(c);
     return;
   }
