@@ -69,6 +69,10 @@
 
 : recurse   latest @ >cfa , ; immediate
 
+\ here's an example of recurse:
+\ : fac ( n -- n) dup 1 > if dup 1 - recurse * then ;
+
+
 \ if-then-else
 : if   compile 0branch here 0 , ; immediate
 : then   dup here swap - swap ! ; immediate
