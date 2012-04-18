@@ -716,6 +716,7 @@ emit_.3:    ife [curvid], vidramsiz_ ; we'll always hit the number exactly...
             set i, [curvid]
             add i, vidram_
             set [i], [var_conattr]  ; set terminal attributes
+            bor [i], 1              ; the cursor always blinks
             shl [i], 7
             bor [i], 0x5f           ; show cursor
             set pc, pop
