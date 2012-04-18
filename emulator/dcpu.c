@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -78,6 +79,7 @@ int main(int argc, char **argv) {
   uint32_t khz = DEFAULT_KHZ;
   bool bigend = true;
   bool debug = false;
+  bool dump_screen = false;
   dcpu dcpu;
   dcpu.detect_loops = false;
 
@@ -91,10 +93,11 @@ int main(int argc, char **argv) {
       {"debug-boot", 0, 0, 'd'},
       {"little-endian", 0, 0, 'e'},
       {"detect-loops", 0, 0, 'l'},
+      {"dump-screen", 0, 0, 's'},
       {0, 0, 0, 0},
     };
 
-    c = getopt_long(argc, argv, "hvk:del", long_options, NULL);
+    c = getopt_long(argc, argv, "hvk:dels", long_options, NULL);
 
     if (c == -1) break;
 
@@ -122,6 +125,9 @@ int main(int argc, char **argv) {
         break;
       case 'l':
         dcpu.detect_loops = true;
+        break;
+      case 's':
+        dump_screen = true;
         break;
       default:
         usage(argv);
@@ -154,6 +160,20 @@ int main(int argc, char **argv) {
 
   dcpu_killterm();
   puts(" * dcpu-16 halted.");
+
+  if (dump_screen) {
+    puts(" * final screen buffer contents:");
+    u16 *addr = &dcpu.ram[VRAM_ADDR];
+    for (u16 i = 0; i < SCR_HEIGHT; i++) {
+      printf("\n   ");
+      for (u16 j = 0; j < SCR_WIDTH; j++, addr++) {
+        char ch = *addr & 0x7f;
+        if (isprint(ch)) putchar(ch);
+        else putchar(' ');
+      }
+    }
+    printf("\n\n");
+  }
 
   return 0;
 }
