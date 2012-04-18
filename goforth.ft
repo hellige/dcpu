@@ -177,7 +177,8 @@ variable quitword
 : boot  ( never returns ) space
     64 conattr ! ." this is " 
     320 conattr ! ." goforth"
-    64 conattr ! ." . enjoy."
+    64 conattr ! ." . enjoy." cr space
+    ." ram used: " here . ." of 65536 words."
     quit ;
 ' boot boot-word !
 
