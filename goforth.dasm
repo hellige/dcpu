@@ -263,7 +263,8 @@ dhcode_:    jsr dodoes
 dhend_:     ; just in case the jsr is 2 words...
 
 ; built-in constants and variables...
-; 'latest' and 'h' are defined at the very end, so they can be properly initialized...
+; 'latest' and 'h' are defined at the very end, so they can be properly
+; initialized...
             defconst(tib, tib, s0_)
             defvar(>in, inptr, 0)
             defvar(srcptr, srcptr, 0)
@@ -348,34 +349,93 @@ dhend_:     ; just in case the jsr is 2 words...
             add z, 1
             next
 
-            ; TODO unsigned mul
-            defcode(*, 0, times)
-            set a, [z]
-            add z, 1
-            mul [z], a
-            next
-
-            ; TODO unsigned div
-            defcode(/, 0, div)
-            set a, [z]
-            add z, 1
-            div [z], a
-            next
-
-            ; TODO unsigned divmod
-            defcode(/mod, 0, divmod)
-            set a, [z]
-            set [z], [1+z]
-            mod [1+z], a
-            div [z], a
-            next
-
             defcode(1+, 0, oneplus)
             add [z], 1
             next
 
             defcode(1-, 0, oneminus)
             sub [z], 1
+            next
+
+            defcode(*, 0, times)
+            set a, [z]
+            add z, 1
+            mul [z], a
+            next
+
+            defcode(u/, 0, udiv)
+            set a, [z]
+            add z, 1
+            div [z], a
+            next
+
+            defcode(u/mod, 0, udivmod)
+            set a, [z]
+            set [z], [1+z]
+            mod [1+z], a
+            div [z], a
+            next
+
+            ; signed division is symmetric (truncating). ans allows
+            ; either, it's a holy war and i have no horse in the race.
+            ; but i suspect that if notch implements divi, it will be
+            ; truncating, so this will then be a single instruction.
+            defcode(/, 0, div)
+            set a, [z]              ; a is divisor
+            add z, 1
+            set b, [z]              ; b is dividend
+            set c, b
+            xor c, a
+            shr c, 15               ; c is 1 if signs differ
+            ifg 0x8000, a           ; a is positive
+            set pc, div.1
+            xor a, 0xffff           ; else make it positive
+            add a, 1
+div.1:      ifg 0x8000, b           ; likewise, b is positive
+            set pc, div.2
+            xor b, 0xffff           ; else make it positive
+            add b, 1
+div.2:      div b, a                ; unsigned quotient is in b
+            ife c, 0                ; were the signs the same?
+            set pc, div.3           ; if so, done
+            xor b, 0xffff           ; else negate the quotient
+            add b, 1
+div.3:      set [z], b              ; and return it
+            next
+
+            defcode(lshift, 0, lshift)
+            set a, [z]
+            add z, 1
+            shl [z], a
+            next
+
+            defcode(rshift, 0, rshift)
+            set a, [z]
+            add z, 1
+            shr [z], a
+            next
+
+            defcode(2*, 0, twomul)
+            shl [z], 1
+            next
+
+            defcode(and, 0, bitand)
+            and [1+z], [z]
+            add z, 1
+            next
+
+            defcode(or, 0, bitor)
+            bor [1+z], [z]
+            add z, 1
+            next
+
+            defcode(xor, 0, bitxor)
+            xor [1+z], [z]
+            add z, 1
+            next
+
+            defcode(invert, 0, bitnot)
+            xor [z], 0xffff
             next
 
             defcode(negate, 0, negate)
@@ -386,6 +446,22 @@ dhend_:     ; just in case the jsr is 2 words...
             ; TODO more...
 
 ; comparisons
+            defcode(=, 0, equal)
+            set a, 0
+            ife [z], [1+z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
+            defcode(<>, 0, nequal)
+            set a, 0
+            ifn [z], [1+z]
+            set a, 0xffff
+            add z, 1
+            set [z], a
+            next
+
             defcode(<, 0, less)
             set a, 0
             add [z], 0x8000
@@ -451,8 +527,6 @@ zequ.1:     set [z], 0xffff
             next
 
             ; TODO more...
-
-; TODO logic
 
 ; internals, execution
             defcode(exit, 0, exit)
@@ -527,7 +601,7 @@ move.1:     next
             add z, 1
             next
 
-            defcode(<r, 0, fromr)
+            defcode(r>, 0, fromr)
             sub z, 1
             poprsp([z])
             next

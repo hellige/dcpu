@@ -70,7 +70,7 @@
 : recurse   latest @ >cfa , ; immediate
 
 \ here's an example of recurse:
-\ : fac ( n -- n) dup 1 > if dup 1 - recurse * then ;
+\ : fac ( n -- n) dup 1 > if dup 1- recurse * then ;
 
 
 \ if-then-else
@@ -115,12 +115,12 @@
 : spaces  ( n -- )  begin dup 0 > while space 1- repeat drop ;
 
 : u.  ( u -- )
-    base @ /mod
+    base @ u/mod
     ?dup if recurse then
     dup 10 u< if char 0 else 10 - char a then + emit ;
 
 \ number of digits in an unsigned number in the current base
-: uwidth  ( u -- width )  base @ / ?dup if recurse 1+ else 1 then ;
+: uwidth  ( u -- width )  base @ u/ ?dup if recurse 1+ else 1 then ;
 \ print unsigned with minimum width (space-padded)
 : u.r  ( u width -- ) swap dup uwidth rot swap - spaces u. ;
 \ print signed with minimum width (space-padded)
