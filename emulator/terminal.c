@@ -152,6 +152,7 @@ static void draw(u16 word, u16 row, u16 col) {
   color_set(color(fg, bg), NULL);
   if (blink) attron(A_BLINK);
   addch(letter);
+  if (blink) attroff(A_BLINK);
 }
 
 void dcpu_redraw(dcpu *dcpu) {
