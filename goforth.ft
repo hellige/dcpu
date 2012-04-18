@@ -158,14 +158,28 @@ variable quitword
 : abort"  ( n -- )  [compile] S" compile doabrt ; immediate
 
 
+\ words to handle terminal attributes. see below for examples...
+\ i'm not super happy with this design...
+0 constant term
+: r  ( term -- term )  4 or ;
+: g  ( term -- term )  2 or ;
+: b  ( term -- term )  1 or ;
+: hi ( term -- term )  8 or ;
+term r g b hi 2* invert constant bgmask
+term r g b hi 2* 4 lshift invert constant fgmask
+: bg ( term -- ) 2*  conattr @  bgmask and or conattr ! ;
+: fg ( term -- ) 2* 4 lshift  conattr @  fgmask and or conattr ! ;
+: blink  ( -- )  conattr @ 1 or conattr ! ; \ this one is a toggle
+: defcon ( -- )  term bg  term r g b fg ;
+
 \ finally, the traditional repl that checks after each line for stack underflow.
 \ surprisingly, because of the memory layout, this simple check is enough to
 \ catch a lot of problems before the heap is actually damaged.
 : quit   cr  r0 @ rsp!
     begin
-      224 conattr ! cr refill 320 conattr !
+      defcon  cr refill  term g hi fg
       0= if abort" failed to refill input buffer" then
-      64 conattr ! interpret 320 conattr !
+      term g fg  interpret  term g hi fg
       0= if abort" no such word" then
       dsp@ s0 @ u> if abort" stack underflow" then
       space ." ok " cr
@@ -175,9 +189,9 @@ variable quitword
 
 \ the real boot word
 : boot  ( never returns ) space
-    64 conattr ! ." this is " 
-    320 conattr ! ." goforth"
-    64 conattr ! ." . enjoy." cr space
+    term g fg  ." this is " 
+    term g hi fg  ." goforth"
+    term g fg  ." . enjoy." cr space
     ." ram used: " here . ." of 65536 words."
     quit ;
 ' boot boot-word !
