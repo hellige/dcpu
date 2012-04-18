@@ -48,6 +48,8 @@ static void usage(char **argv) {
   fprintf(stderr, "   -d, --debug-boot     enter debugger on boot\n");
   fprintf(stderr, "   -l, --detect-loops   "
       "enter debugger on single-instruction loop\n");
+  fprintf(stderr, "   -s, --dump-screen    "
+      "dump (ascii) contents of video ram to stdout on exit\n");
   fprintf(stderr, "\n");
   fprintf(stderr,
       "the maximum achievable clock rate depends on the host cpu as well\n");
