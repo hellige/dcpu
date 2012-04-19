@@ -92,6 +92,30 @@
 : while   compile 0branch here 0 , ; immediate
 : repeat   compile branch swap here - , dup here swap - swap ! ; immediate
 
+\ case .. of .. endof .. endcase
+: case   0 ; immediate
+: of   compile over compile = [compile] if compile drop ; immediate
+: endof   [compile] else ; immediate
+: endcase   compile drop begin ?dup while [compile] then repeat ; immediate
+
+\ note that you can also use case/endcase with predicates other than 0, via
+\ a slight abuse of the implementation. for example:
+\  : fb  ( n -- )
+\    case
+\      dup  15 mod 0=  if ." FizzBuzz " else
+\      dup   5 mod 0=  if ." Buzz " else
+\      dup   3 mod 0=  if ." Fizz " else
+\      dup .
+\    endcase ;
+\ contrast this with the more usual:
+\  : asdf  ( n -- )
+\    case
+\      15 of ." it's fifteen! " endof
+\       5 of ." it's five! " endof
+\       3 of ." it's three! " endof
+\      ( default ) dup ." it's " .
+\    endcase ;
+
 
 \ char grabs first char of next word, but it needs to be state-smart...
 : char   parse-word drop @
@@ -172,6 +196,7 @@ term r g b hi 2* 4 lshift invert constant fgmask
 : blink  ( -- )  conattr @ 1 or conattr ! ; \ this one is a toggle
 : defcon ( -- )  term bg  term r g b fg ;
 
+
 \ finally, the traditional repl that checks after each line for stack underflow.
 \ surprisingly, because of the memory layout, this simple check is enough to
 \ catch a lot of problems before the heap is actually damaged.
@@ -195,6 +220,7 @@ term r g b hi 2* 4 lshift invert constant fgmask
     ." ram used: " here . ." of 65536 words."
     quit ;
 ' boot boot-word !
+
 
 \ save the whole dictionary as a bootable image
 here dump-core

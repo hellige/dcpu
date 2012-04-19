@@ -606,6 +606,40 @@ move.1:     next
             poprsp([z])
             next
 
+            defcode(r@, 0, rpeek)
+            sub z, 1
+            set [z], peek
+            next
+
+            defcode(rdrop, 0, rdrop)
+            poprsp(a)               ; destination is irrelevant
+            next
+
+            defcode(2>r, 0, twotor)
+            pushrsp([1+z])
+            pushrsp([z])
+            add z, 2
+            next
+
+            defcode(2r>, 0, twofromr)
+            sub z, 2
+            poprsp([z])
+            poprsp([1+z])
+            next
+
+            defcode(2r@, 0, tworpeek)
+            ; double ugly because dcpu-16 doesn't support sp+lit addressing
+            sub z, 2
+            set a, sp
+            set [z], [a]
+            set [1+z], [1+a]
+            next
+
+            defcode(2rdrop, 0, twordrop)
+            poprsp(a)               ; destination is irrelevant
+            poprsp(a)               ; destination is irrelevant
+            next
+
             defcode(rsp!, 0, rspstore)
             set sp, [z]
             add z, 1
@@ -614,10 +648,6 @@ move.1:     next
             defcode(rsp@, 0, rspfetch)
             sub z, 1
             set [z], sp
-            next
-
-            defcode(rdrop, 0, rdrop)
-            poprsp(a)               ; destination is irrelevant
             next
 
             defcode(dsp!, 0, dspstore)
