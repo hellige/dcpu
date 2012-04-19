@@ -92,6 +92,44 @@
 : while   compile 0branch here 0 , ; immediate
 : repeat   compile branch swap here - , dup here swap - swap ! ; immediate
 
+
+\ do LOOP loop
+\ TODO: implement leave
+: do   0 here \ leave 0 and current addr on the compile-time stack
+       compile 2>r \ move limit and index to return stack
+       ; immediate
+\ ?do skips the loop if limit and start are equal. (this explains the initial 0
+\ in the definition of do.)
+: ?do  compile branch here 0 , here compile 2>r ; immediate
+
+: loop compile 2r> \ fetch limit and index
+       compile 1+ \ increment index
+       swap ?dup if dup here swap - swap ! then \ set the initial branch, if any
+       compile 2dup compile = \ do the test
+       compile 0branch here - , \ and branch back if it failed
+       compile 2drop \ drop the limit and index when we're done
+       ; immediate
+
+\ this isn't right per ans. +loop is supposed to do something completely
+\ crazy involving "crossing the boundary between limit and limit-1," but
+\ the specified semantics are very controversial and totally nuts so
+\ for now... just hit the limit exactly.
+: +loop compile 2r> \ fetch limit and index
+        compile rot compile + \ perform increment
+        compile 2dup compile = \ do the test
+        compile 0branch here - , \ and branch back if it failed
+        compile 2drop \ drop the limit and index when we're done
+        ; immediate
+
+\ you might think these don't need to be immediate. but they do. if not, then
+\ by the time we've entered i and execute r@, the return stack will already
+\ hold the return address of i, which is, of course, not what we want. so
+\ it's important that we actually inline the primitives here.
+: i  ( -- i )  compile r@ ; immediate
+: j  ( -- j )  compile 2r> compile r@ compile -rot compile 2>r ; immediate
+: unloop  ( -- ) compile 2rdrop ; immediate
+
+
 \ case .. of .. endof .. endcase
 : case   0 ; immediate
 : of   compile over compile = [compile] if compile drop ; immediate
