@@ -73,6 +73,13 @@
 \ : fac ( n -- n) dup 1 > if dup 1- recurse * then ;
 
 
+\ some arithmetic
+: <=  ( n n -- ? ) > not ;
+: >=  ( n n -- ? ) < not ;
+: 0<  ( n -- ? ) 0 < ;
+: 0>  ( n -- ? ) 0 > ;
+
+
 \ if-then-else
 : if   compile 0branch here 0 , ; immediate
 : then   dup here swap - swap ! ; immediate
@@ -100,24 +107,27 @@
        ; immediate
 \ ?do skips the loop if limit and start are equal. (this explains the initial 0
 \ in the definition of do.)
-: ?do  compile branch here 0 , here compile 2>r ; immediate
+: ?do  compile 2dup compile <> \ do the test
+       compile 0branch here 0 , \ branch if equal
+       here compile 2>r ; immediate
 
 : loop compile 2r> \ fetch limit and index
        compile 1+ \ increment index
-       swap ?dup if dup here swap - swap ! then \ set the initial branch, if any
        compile 2dup compile = \ do the test
        compile 0branch here - , \ and branch back if it failed
+       ?dup if dup here swap - swap ! then \ set the initial branch, if any
        compile 2drop \ drop the limit and index when we're done
        ; immediate
 
 \ this isn't right per ans. +loop is supposed to do something completely
 \ crazy involving "crossing the boundary between limit and limit-1," but
 \ the specified semantics are very controversial and totally nuts so
-\ for now... just hit the limit exactly.
+\ for now... +loop doesn't work for negative step sizes.
 : +loop compile 2r> \ fetch limit and index
         compile rot compile + \ perform increment
-        compile 2dup compile = \ do the test
+        compile 2dup compile <= \ do the test
         compile 0branch here - , \ and branch back if it failed
+        ?dup if dup here swap - swap ! then \ set the initial branch, if any
         compile 2drop \ drop the limit and index when we're done
         ; immediate
 
@@ -126,6 +136,7 @@
 \ hold the return address of i, which is, of course, not what we want. so
 \ it's important that we actually inline the primitives here.
 : i  ( -- i )  compile r@ ; immediate
+: i' ( -- lim )  compile 2r@ compile drop ; immediate
 : j  ( -- j )  compile 2r> compile r@ compile -rot compile 2>r ; immediate
 : unloop  ( -- ) compile 2rdrop ; immediate
 
@@ -166,6 +177,17 @@
 : pick  ( x_u ... x_1 x_0 u -- x_u ... x_1 x_0 x_u )  1+ dsp@ + @ ;
 
 
+\ more arithmetic/logic
+\ TODO this doesn't handle wrapping around 0 correctly
+: within  ( n lo hi -- ? )
+    2 pick > if
+      >= if true else false then
+    else 2drop false then ;
+
+: min ( n n -- n ) 2dup < unless swap then drop ;
+: max ( n n -- n ) 2dup > unless swap then drop ;
+
+
 \ standard base-changing words
 : decimal  ( -- )  10 base ! ;
 : hex  ( -- )  16 base ! ;
@@ -173,8 +195,7 @@
 
 \ printing...
 
-\ TODO 0>
-: spaces  ( n -- )  begin dup 0 > while space 1- repeat drop ;
+: spaces  ( n -- )  0 max 0 ?do space loop ;
 
 : u.  ( u -- )
     base @ u/mod
@@ -185,9 +206,10 @@
 : uwidth  ( u -- width )  base @ u/ ?dup if recurse 1+ else 1 then ;
 \ print unsigned with minimum width (space-padded)
 : u.r  ( u width -- ) swap dup uwidth rot swap - spaces u. ;
+\ same thing, zero-padded
+: u.r0 ( u width -- ) swap dup uwidth rot swap - 0 ?do char 0 emit loop u. ;
 \ print signed with minimum width (space-padded)
-\ TODO 0<
-: .r  ( n width -- ) swap dup 0 <
+: .r  ( n width -- ) swap dup 0<
     if negate 1 swap rot 1- else 0 swap rot then
     swap dup uwidth rot swap -  spaces swap  if char - emit then  u. ;
 
@@ -199,6 +221,7 @@
 
 : ? ( addr -- ) @ . ;
 
+
 \ strings
 : .(   char ) parse type ; immediate
 
@@ -209,6 +232,21 @@
        move ; immediate         \ copy the string
 
 : ."   [compile] S"  compile type ; immediate
+
+
+\ memory dump
+: printable  ( u -- ? ) bl 128 within ;
+: bounds   over + swap ;
+variable /dump
+: .cell   1 /dump -! /dump @ 0<
+    if 5 spaces else dup @ 4 u.r0 space then 1+ ;
+: .chars   /dump @ bounds
+    ?do i @ dup printable unless drop char . then emit loop ;
+: .line   dup .cell .cell .cell .cell space drop 4 /dump +! .chars ;
+: dump  ( addr len -- )
+    cr base @ >r hex
+    0 ?do  i' i - 4 min /dump ! dup 4 u.r0 ." : " dup .line cr 4 + 4 +loop
+    drop r> base ! ;
 
 
 \ abort is just a stack-clearing quit, but since we haven't defined
