@@ -274,6 +274,13 @@ dhend_:     ; just in case the jsr is 2 words...
             defvar(s0, s0, s0_)
             defvar(base, base, 10)
             defvar(conattr, conattr, 0)
+; we also reflect the addresses of the xt values for 'see', custom compiling
+; words, etc...
+            defconst(docol:, docolf, docol)
+            defconst(dovar:, dovarf, dovar)
+            defconst(docon:, doconf, docon)
+            defconst(dodoes:, dodoesf, dodoes)
+
 
 ; now we start right in with a bunch of primitive words...
 

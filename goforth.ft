@@ -151,9 +151,9 @@
 \ a slight abuse of the implementation. for example:
 \  : fb  ( n -- )
 \    case
-\      dup  15 mod 0=  if ." FizzBuzz " else
-\      dup   5 mod 0=  if ." Buzz " else
-\      dup   3 mod 0=  if ." Fizz " else
+\      dup  15 mod 0=  if drop ." FizzBuzz " else
+\      dup   5 mod 0=  if drop ." Buzz " else
+\      dup   3 mod 0=  if drop ." Fizz " else
 \      dup .
 \    endcase ;
 \ contrast this with the more usual:
