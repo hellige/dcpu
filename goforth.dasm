@@ -280,6 +280,7 @@ dhend_:     ; just in case the jsr is 2 words...
             defconst(dovar:, dovarf, dovar)
             defconst(docon:, doconf, docon)
             defconst(dodoes:, dodoesf, dodoes)
+            defconst(lenmask, lenmaskf, f_lenmask)
 
 
 ; now we start right in with a bunch of primitive words...
