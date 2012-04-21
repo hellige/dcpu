@@ -24,22 +24,59 @@
 \ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-: docol-see  ( xt -- ) drop ." docol " ; \ TODO obviously
+\ this file contains a simple forth decompiler in the form of SEE.
+\ it relies on a number of heuristics which will generally be correct
+\ for user-defined words, but will not always be correct for words
+\ defined in the forth kernel. some tidying of the kernel and care
+\ to separate forth-visible words from other fragments of assembly
+\ code should clean that up. but we'll still have to rely on heuristics
+\ in any event, so the situation as it is isn't so terrible.
 
-: const-see  ( xt -- ) ." constant: " 1+ ? ; 
-: var-see  ( xt -- ) ." variable: " 1+ ? ; 
+\ a number of other words in this file may be useful in their own
+\ right for navigating the dictionary.
+
+
+\ we exploit the fact that the final link pointer is 0, and
+\ thus less than any word in the dictionary
+: next-head  ( addr -- limit addr )
+    latest @ here ! here ( start at here in case we 'see' latest )
+    swap >r ( stash addr )
+    begin dup @ r@ > while @ repeat
+    r> ;
+: >name  ( xt -- nt ) next-head drop @ 1+ ;
+
+: count  ( c-addr -- c-addr u )  dup 1+ swap @ ;
+: id.  ( nt -- )  count lenmask and type ;
+
+: '"' char " emit ;
+: see-word  ( addr -- n )
+    space base @ >r hex dup 4 u.r0 ." : " r> base !
+    dup @ case
+        ['] lit of ." < " 1+ ? ." >" 2 endof
+        ['] litstring of '"' 1+ dup @ 2 + swap count type '"' endof
+        ['] 0branch of ." 0branch " 1+ ? 2 endof
+        ['] branch of ." branch " 1+ ? 2 endof
+        >name id. 1 swap
+    endcase ;
+\ includes start, excludes limit
+: see-range  ( limit start -- )  ?do i see-word cr +loop ;
+
+: docol-see  ( xt -- ) ." colon-defined word:" cr
+    1+ next-head see-range ;
+: const-see  ( xt -- ) ." constant: " 1+ ? ;
+: var-see  ( xt -- ) ." variable: " 1+ ? ;
 : xt-see   dup @ case
     docol: of dup docol-see endof
     dovar: of dup var-see endof
     docon: of dup const-see endof
     ( xt [xt] -- )
-    2dup 1- = if drop ." primitive" else
+    2dup 1- = if drop ." primitive" else \ TODO disassemble
     ( TODO heuristic check for does> dispatch at the target address )
     ." unrecognized code field value"
     endcase
     drop cr ;
 : see   ' ?dup 0= if abort" no such word" then cr xt-see ;
-    
+
 
 \ save the new image
 here dump-core
