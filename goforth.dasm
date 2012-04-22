@@ -853,6 +853,14 @@ isspace_:   set j, 0
             set j, -1
             set pc, pop
 
+            ; Takes address of character in b and lowers it in-place.
+lower_:     ifg [b], 0x5a
+            set pc, lower_.end
+            ifg 0x41, [b]
+            set pc, lower_.end
+            add [b], 0x20 ; Shift the character from upper- to lowercase.
+lower_.end: set pc, pop
+
             ; expects address of string in a, upper limit in c
 dropspace_: ife a, c
             set pc, pop             ; input exhausted, bail
@@ -923,17 +931,25 @@ pword.end:  set [z], a              ; push parsed length
             ; modifies i, advances b and decrements a as it parses...
 tonum_:     ife a, 0                ; bail if exhausted
             set pc, tonum_.end
-            ifg [b], 0x39           ; bail if char > '9'
-            set pc, tonum_.end
+            ifg [b], 0x39           ; Try a character if char > '9'
+            set pc, tonum_.chr
             ifg 0x30, [b]           ; bail if char < '0'
             set pc, tonum_.end
-            mul i, 10               ; shift i one place
             set j, [b]
             sub j, 0x30             ; remove '0'
+tonum_.mul: mul i, [var_base]       ; shift i one place
             add i, j                ; add it
             sub a, 1                ; advance to `next' char
             add b, 1
             set pc, tonum_          ; and begin again...
+tonum_.chr: jsr lower_              ; Lower the character.
+            ifg [b], 0x7a           ; Not a lowercase character.
+            set pc, tonum_
+            ifg 0x61, [b]           ; Also not a lowercase character.
+            set pc, tonum_
+            set j, [b]
+            sub j, 0x57
+            set pc, tonum_.mul
 tonum_.end: set pc, pop
 
             ; convert word to number, possibly negative.
