@@ -77,7 +77,7 @@ variable /disasm-pc
 : disasm-op  ( inst -- op )  0x f and ;
 : disasm-a   ( inst -- arg )  4 rshift 0x 3f and ;
 : disasm-b   ( inst -- arg )  10 rshift ;
-: disasm-nextlit  ( -- )  ." 0x" disasm-pc@ @ 4 xu.r0 ;
+: disasm-nextlit  ( -- )  disasm-pc@ @ 0 .r ;
 : decode-arg  ( arg -- ) case
         0x 18 of ." pop" endof
         0x 19 of ." peek" endof
