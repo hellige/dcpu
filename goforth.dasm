@@ -923,10 +923,6 @@ pword.end:  set [z], a              ; push parsed length
             sub [var_inptr], [var_srcptr]
             next
 
-
-            ; >number ( u1 a1 u1 -- u2 a2 u2 ) TODO wrap!
-
-            ; TODO other bases!
             ; convert word to number. word len in a, ptr in b, accumulator in i.
             ; modifies i, advances b and decrements a as it parses...
 tonum_:     ife a, 0                ; bail if exhausted
@@ -937,26 +933,40 @@ tonum_:     ife a, 0                ; bail if exhausted
             set pc, tonum_.end
             set j, [b]
             sub j, 0x30             ; remove '0'
-tonum_.mul: mul i, [var_base]       ; shift i one place
+tonum_.mul: ifg j, [var_base]       ; bail if not a digit in current base
+            set pc, tonum_.end
+            ife j, [var_base]
+            set pc, tonum_.end
+            mul i, [var_base]       ; shift i one place
             add i, j                ; add it
             sub a, 1                ; advance to `next' char
             add b, 1
             set pc, tonum_          ; and begin again...
 tonum_.chr: jsr lower_              ; Lower the character.
             ifg [b], 0x7a           ; Not a lowercase character.
-            set pc, tonum_
+            set pc, tonum_.end
             ifg 0x61, [b]           ; Also not a lowercase character.
-            set pc, tonum_
+            set pc, tonum_.end
             set j, [b]
             sub j, 0x57
             set pc, tonum_.mul
 tonum_.end: set pc, pop
 
+            ; >number ( u1 a1 u1 -- u2 a2 u2 )
+            defcode(>number, 0, tonumber)
+            set a, [z]
+            set b, [1+z]
+            set i, [2+z]
+            jsr number_
+            set [2+z], i
+            set [1+z], b
+            set [z], a
+            next
+
             ; convert word to number, possibly negative.
             ; takes word len in a, ptr in b.
-            ; returns result in i, advances b and decrements a as it parses...
-number_:    set i, 0                ; no accumulator so far
-            set push, 0             ; number is positive
+            ; accumulates result in i, advances b and decrements a as it parses...
+number_:    set push, 0             ; number is positive
             ife a, 0                ; bail if exhausted
             set pc, numb_.end
             ifn [b], 0x2d           ; if first char is '-'
@@ -1065,7 +1075,8 @@ compile__:  set a, [z]              ; load length
             set pc, [x]             ; and execute it...
 compile_.4: jsr comma_              ; non-immediate. compile the value in j.
             set pc, compile_.3
-compile_.1: jsr number_
+compile_.1: set i, 0                ; no accumulator so far...
+            jsr number_
             ife a, 0
             set pc, compile_.2
             set [var_succ], 0x0     ; not a number. bail.
@@ -1200,7 +1211,8 @@ interp_:    set a, [z]              ; load length
             set pc, interp_.1       ; not in dict...
             set x, j                ; found. update the codeword pointer
             set pc, [x]             ; and execute it...
-interp_.1:  jsr number_
+interp_.1:  set i, 0                ; no accumulator so far...
+            jsr number_
             ife a, 0
             set pc, interp_.2
             set [var_succ], 0x0     ; not a number. bail.
