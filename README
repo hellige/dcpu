@@ -1,8 +1,7 @@
 DCPU-16 Playground
 
-This is an emulator, assembler, and a (still primitive) implementation of
-the Forth programming language for notch's DCPU-16. See
-http://0x10c.com/doc/dcpu-16.txt for details.
+This is an emulator, assembler, and an implementation of the Forth programming
+language for notch's DCPU-16. See http://0x10c.com/doc/dcpu-16.txt for details.
 
 There are also a couple of useful scripts for swapping endianness of binary
 images and dumping to hex in a format supported by some other emulators.
@@ -55,8 +54,11 @@ goforth
    go, folks, go forth. trust your brain! trust your body!'
 
 The real fun starts in goforth.dasm and goforth.ft. goforth is an
-implementation of the Forth programming language for DCPU-16. It's still
-primitive and there's more work to be done, but it's already quite usable.
+implementation of the Forth programming language for DCPU-16. There's still
+plenty of work to be done, but it's already quite usable. For example, it
+contains a built-in decompiler/disassembler and other amenities. (In fact, you
+might take a look at the file disasm.ft for an example of some non-trivial code
+written in goforth.)
 
 The bootstrapped goforth image should run on any DCPU-16 emulator that
 supports I/O. (It'll run on others, too, but won't do much...)
