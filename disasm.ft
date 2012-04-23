@@ -94,7 +94,7 @@ variable /disasm-pc
         dup ." unknown oparg: " 2 xu.r0
     endcase ;
 : disasm-special ( inst -- )
-    dup disasm-a dup 0x01 =
+    dup disasm-a dup 0x 01 =
     if drop ." jsr" else ." unk[" 2 xu.r0 ." ]" then space
     disasm-b decode-arg ;
 : disasm-inst  ( -- )
