@@ -34,12 +34,15 @@
 
 
 struct term_t {
+  WINDOW *border;
+  WINDOW *vidwin;
   WINDOW *dbgwin;
   tstamp_t tickns;
   tstamp_t nexttick;
   tstamp_t keyns;
   tstamp_t nextkey;
   u16 keypos;
+  u16 curborder;
 };
 
 static struct term_t term;
@@ -56,12 +59,15 @@ void dcpu_initterm(void) {
   term.keyns = 1000000000 / KBD_BAUD;
   term.nextkey = dcpu_now();
   term.keypos = 0;
+  term.curborder = 0;
 
   // should be done prior to initscr, and it doesn't matter if we do it twice
   initscr();
   start_color();
   cbreak();
   keypad(stdscr, true);
+  term.border = subwin(stdscr, 14, 36, 0, 0);
+  term.vidwin = subwin(stdscr, 12, 32, 1, 2);
   term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
   scrollok(term.dbgwin, true);
   keypad(term.dbgwin, true);
@@ -137,7 +143,7 @@ void dcpu_dbgterm(void) {
 }
 
 static void draw(u16 word, u16 row, u16 col) {
-  move(row+1, col+1);
+  wmove(term.vidwin, row, col);
 
   char letter = word & 0x7f;
   bool blink = word & 0x80;
@@ -149,18 +155,27 @@ static void draw(u16 word, u16 row, u16 col) {
   // use color_set() rather than COLOR_PAIR() since we may have more than 256
   // colors. unfortunately that doesn't really solve the problem, since every
   // linux that i can find still doesn't ship ncurses 6. how sad.
-  color_set(color(fg, bg), NULL);
-  if (blink) attron(A_BLINK);
-  addch(letter);
-  if (blink) attroff(A_BLINK);
+  wcolor_set(term.vidwin, color(fg, bg), NULL);
+  if (blink) wattron(term.vidwin, A_BLINK);
+  waddch(term.vidwin, letter);
+  if (blink) wattroff(term.vidwin, A_BLINK);
+}
+
+static void draw_border(dcpu *dcpu) {
+  if (term.curborder != (dcpu->ram[BORDER_ADDR] & 0xf)) {
+    term.curborder = dcpu->ram[BORDER_ADDR] & 0xf;
+    wbkgd(term.border, A_NORMAL | COLOR_PAIR(color(0, term.curborder)) | ' '); 
+    wrefresh(term.border);
+  }
 }
 
 void dcpu_redraw(dcpu *dcpu) {
+  draw_border(dcpu);
   u16 *addr = &dcpu->ram[VRAM_ADDR];
   for (u16 i = 0; i < SCR_HEIGHT; i++) 
     for (u16 j = 0; j < SCR_WIDTH; j++)
       draw(*addr++, i, j);
-  refresh();
+  wrefresh(term.vidwin);
 }
 
 void dcpu_termtick(dcpu *dcpu, tstamp_t now) {
