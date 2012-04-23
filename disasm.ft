@@ -48,9 +48,14 @@
 : count  ( c-addr -- c-addr u )  dup 1+ swap @ ;
 : id.  ( nt -- )  count lenmask and type ;
 
+: xu.r0  ( u n -- ) base @ >r hex u.r0 r> base ! ;
+
+
+\ colon decompiler for forth words
+
 : '"' char " emit ;
 : see-word  ( addr -- n )
-    space base @ >r hex dup 4 u.r0 ." : " r> base !
+    space dup 4 xu.r0 ." : "
     dup @ case
         ['] lit of ." < " 1+ ? ." >" 2 endof
         ['] litstring of '"' 1+ dup @ 2 + swap count type '"' endof
@@ -59,18 +64,64 @@
         >name id. 1 swap
     endcase ;
 \ includes start, excludes limit
-: see-range  ( limit start -- )  ?do i see-word cr +loop ;
+: see-range  ( limit start -- )  cr ?do i see-word cr +loop ;
 
-: docol-see  ( xt -- ) ." colon-defined word:" cr
-    1+ next-head see-range ;
+
+\ native disassembler for primitives (and any other memory, obviously)
+
+variable /disasm-pc
+: disasm-pc@  ( -- u )  /disasm-pc @  1 /disasm-pc +! ;
+: "regs"   S" abcxyzij" ;
+: "opname"   S" xxxsetaddsubmuldivmodshlshrandborxorifeifnifgifb" ;
+: opname  ( op -- )  3 * "opname" drop + 3 type space ;
+: disasm-op  ( inst -- op )  0x f and ;
+: disasm-a   ( inst -- arg )  4 rshift 0x 3f and ;
+: disasm-b   ( inst -- arg )  10 rshift ;
+: disasm-nextlit  ( -- )  ." 0x" disasm-pc@ @ 4 xu.r0 ;
+: decode-arg  ( arg -- ) case
+        0x 18 of ." pop" endof
+        0x 19 of ." peek" endof
+        0x 1a of ." push" endof
+        0x 1b of ." sp" endof
+        0x 1c of ." pc" endof
+        0x 1d of ." o" endof
+        0x 1e of ." [" disasm-nextlit ." ]" endof
+        0x 1f of disasm-nextlit endof
+        dup 0x 08 u< if 7 and "regs" drop + @ emit else
+        dup 0x 10 u< if 7 and ." [" "regs" drop + @ emit ." ]" else
+        dup 0x 18 u< if 7 and ." [" disasm-nextlit ." +" "regs" drop + @ emit ." ]" else
+        dup 0x 1f u> if 0x 1f and 0 .r else
+        dup ." unknown oparg: " 2 xu.r0
+    endcase ;
+: disasm-special ( inst -- )
+    dup disasm-a dup 0x01 =
+    if drop ." jsr" else ." unk[" 2 xu.r0 ." ]" then space
+    disasm-b decode-arg ;
+: disasm-inst  ( -- )
+    space disasm-pc@ dup 4 xu.r0 ." : "
+    @ dup disasm-op ?dup if
+        opname dup disasm-a decode-arg ." , " disasm-b decode-arg
+    else
+        disasm-special
+    then ;
+\ include start excludes limit
+: disasm-range  ( limit start -- )
+    cr /disasm-pc !
+    begin dup /disasm-pc @ > while disasm-inst cr repeat drop ;
+
+
+\ higher-level 'see' support
+
+: docol-see  ( xt -- ) ." colon-defined word:" 1+ next-head see-range ;
 : const-see  ( xt -- ) ." constant: " 1+ ? ;
 : var-see  ( xt -- ) ." variable: " 1+ ? ;
+: prim-see  ( xt -- ) ." primitive:" next-head disasm-range ;
 : xt-see   dup @ case
     docol: of dup docol-see endof
     dovar: of dup var-see endof
     docon: of dup const-see endof
     ( xt [xt] -- )
-    2dup 1- = if drop ." primitive" else \ TODO disassemble
+    2dup 1- = if prim-see else
     ( TODO heuristic check for does> dispatch at the target address )
     ." unrecognized code field value"
     endcase

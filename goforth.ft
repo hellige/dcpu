@@ -166,9 +166,19 @@
 \    endcase ;
 
 
+\ standard base-changing words
+: decimal  ( -- )  10 base ! ;
+: hex  ( -- )  16 base ! ;
+
+
 \ char grabs first char of next word, but it needs to be state-smart...
 : char   parse-word drop @
          state @ if [compile] literal then ; immediate
+\ and a state-smart hex parsing word. this should really be done gforth-style...
+: 0x   base @ >r hex
+       0 parse-word >number 2drop \ TODO check errors
+       state @ if [compile] literal then
+       r> base ! ; immediate
 
 
 \ stack manipulators
@@ -186,11 +196,6 @@
 
 : min ( n n -- n ) 2dup < unless swap then drop ;
 : max ( n n -- n ) 2dup > unless swap then drop ;
-
-
-\ standard base-changing words
-: decimal  ( -- )  10 base ! ;
-: hex  ( -- )  16 base ! ;
 
 
 \ printing...
