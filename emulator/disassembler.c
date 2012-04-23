@@ -77,7 +77,7 @@ u16 *disassemble(u16 *pc, char *out) {
     pc = dis_operand(pc, b, out+strlen(out)); 
     return pc;
   }
-  if (a > 0 && a < 7) {
+  if (a > 0 && a < NUM_NBOPCODES) {
     sprintf(out, "%s ", nbopnames[a]);
     pc = dis_operand(pc, b, out+strlen(out));
     return pc;
