@@ -35,14 +35,21 @@
 typedef uint16_t u16;
 typedef uint64_t tstamp_t;
 
-#define DCPU_VERSION  "1.1-mh"
-#define DCPU_MODS     "+img +die"
+#define DCPU_VERSION  "1.5-mh"
+#define DCPU_MODS     "+img +die +dbg"
 #define COREFILE_NAME "core.img"
 #define DEFAULT_KHZ   150
 
 #define RAM_WORDS 0x10000
 // A, B, C, X, Y, Z, I, J
 #define NREGS     8
+#define REG_I     6
+#define REG_J     7
+#define OP_MASK   0x1f
+#define OP_SIZE   5
+#define ARGB_MASK 0x1f
+#define ARGA_MASK 0x3f
+#define ARGB_SIZE 5
 
 #define DISPLAY_HZ    30
 #define VRAM_ADDR     0x8000
@@ -59,7 +66,8 @@ typedef struct dcpu_t {
   tstamp_t nexttick;
   u16 sp;
   u16 pc;
-  u16 o;
+  u16 ex;
+  u16 ia;
   u16 reg[NREGS];
   u16 ram[RAM_WORDS];
 } dcpu;
@@ -69,6 +77,19 @@ typedef enum {
   A_BREAK,
   A_EXIT
 } action_t;
+
+
+static inline uint8_t get_opcode(u16 instr) {
+  return instr & OP_MASK;
+}
+
+static inline uint8_t arg_b(u16 instr) {
+  return (instr >> OP_SIZE) & ARGB_MASK;
+}
+
+static inline uint8_t arg_a(u16 instr) {
+  return (instr >> (OP_SIZE + ARGB_SIZE)) & ARGA_MASK;
+}
 
 
 // disassembler.c
@@ -84,6 +105,9 @@ extern action_t dcpu_step(dcpu *dcpu);
 
 // debug.c
 extern bool dcpu_debug(dcpu *dcpu);
+
+// opcodes.c
+extern void dcpu_initops(void);
 
 // terminal.c
 extern void dcpu_initterm(void);

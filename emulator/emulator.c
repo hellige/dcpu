@@ -38,11 +38,7 @@
 #include "dcpu.h"
 #include "opcodes.h"
 
-#define OP_MASK   0x7
-#define OP_SIZE   4
-#define ARG_MASK  0x3f
-#define ARG_SIZE  6
-
+#define S(x) ((int16_t)(x))
 
 tstamp_t dcpu_now() {
 #if defined(DCPU_LINUX)
@@ -79,7 +75,8 @@ bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz, bool bigend) {
 
   dcpu->sp = 0;
   dcpu->pc = 0;
-  dcpu->o = 0;
+  dcpu->ex = 0;
+  dcpu->ia = 0;
   for (int i = 0; i < NREGS; i++) dcpu->reg[i] = 0;
   for (int i = 0; i < RAM_WORDS; i++) dcpu->ram[i] = 0;
 
@@ -137,29 +134,18 @@ static inline u16 next(dcpu *dcpu, bool effects) {
   return dcpu->ram[dcpu->pc++];
 }
 
-static inline uint8_t opcode(u16 instr) {
-  return instr & 0xf;
-}
 
-static inline uint8_t arg_a(u16 instr) {
-  return (instr >> OP_SIZE) & ARG_MASK;
-}
-
-static inline uint8_t arg_b(u16 instr) {
-  return (instr >> (OP_SIZE + ARG_SIZE)) & ARG_MASK;
-}
-
-
-#define ARG_POP  0x18
+#define ARG_PSHP 0x18
 #define ARG_PEEK 0x19
-#define ARG_PUSH 0x1a
+#define ARG_PICK 0x1a
 #define ARG_SP   0x1b
 #define ARG_PC   0x1c
-#define ARG_O    0x1d
+#define ARG_EX   0x1d
 #define ARG_NXA  0x1e  // next word, deref
 #define ARG_NXL  0x1f  // next word, literal
 
-static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects) {
+static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects,
+    bool a) {
   // in case caller doesn't need addr...
   u16 *tmp;
   if (addr == NULL) addr = &tmp;
@@ -167,37 +153,46 @@ static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects) {
   // initialize to null, the right result for a literal
   *addr = NULL;
 
-  // literal. no address.
-  if (arg & 0x20) return arg - 0x20;
+  // literal. no address. range is [-1, 30]
+  if (arg & 0x20) return arg - 0x21;
 
   // special operator
   if (arg & 0x18) {
     switch (arg) {
-      case ARG_POP:
-        *addr = &dcpu->ram[dcpu->sp];
-        if (effects) dcpu->sp++;
-        return **addr;
+      case ARG_PSHP:
+        if (a) {
+          *addr = &dcpu->ram[dcpu->sp];
+          if (effects) dcpu->sp++;
+          return **addr;
+        } else {
+          if (effects) dcpu->sp--;
+          *addr = &dcpu->ram[dcpu->sp];
+          return **addr;
+        }
       case ARG_PEEK:
         *addr = &dcpu->ram[dcpu->sp];
         return **addr;
-      case ARG_PUSH:
-        if (effects) dcpu->sp--;
-        *addr = &dcpu->ram[dcpu->sp];
+      case ARG_PICK: {
+        // compute the address as a separate variable to guarantee wrap on
+        // overflow
+        u16 address = dcpu->sp + next(dcpu, effects);
+        *addr = &dcpu->ram[address];
         return **addr;
+      }
       case ARG_SP:
         *addr = &dcpu->sp;
         return **addr;
       case ARG_PC:
         *addr = &dcpu->pc;
         return **addr;
-      case ARG_O:
-        *addr = &dcpu->o;
+      case ARG_EX:
+        *addr = &dcpu->ex;
         return **addr;
       case ARG_NXA:
         *addr = &dcpu->ram[next(dcpu, effects)];
         return **addr;
       case ARG_NXL:
-        // literal. no address (by fiat in this case) TODO is that right?
+        // literal. no address (by fiat in this case).
         await_tick(dcpu);
         return next(dcpu, effects);
     }
@@ -227,8 +222,8 @@ static inline void set(u16 *dest, u16 val) {
 // decode (but do not execute) next instruction...
 static inline void skip(dcpu *dcpu) {
   u16 instr = next(dcpu, true);
-  decode_arg(dcpu, arg_a(instr), NULL, false);
-  decode_arg(dcpu, arg_b(instr), NULL, false);
+  decode_arg(dcpu, arg_a(instr), NULL, false, true);
+  decode_arg(dcpu, arg_b(instr), NULL, false, false);
 }
 
 
@@ -236,102 +231,193 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr);
 
 static action_t execute(dcpu *dcpu, u16 instr) {
   u16 *dest;
+  u16 opcode = get_opcode(instr);
 
   // dispatch non-basic instruction before decoding args
-  if (!opcode(instr)) return exec_nonbasic(dcpu, instr);
+  if (!opcode) return exec_nonbasic(dcpu, instr);
 
-  u16 a = decode_arg(dcpu, arg_a(instr), &dest, true);
-  u16 b = decode_arg(dcpu, arg_b(instr), NULL, true);
+  u16 a = decode_arg(dcpu, arg_a(instr), NULL, true, true);
+  u16 b = decode_arg(dcpu, arg_b(instr), &dest, true, false);
 
-  switch (opcode(instr)) {
+  switch (opcode) {
     case OP_SET:
-      set(dest, b);
+      set(dest, a);
       break;
 
     case OP_ADD: {
-      u16 sum = a + b;
+      u16 sum = b + a;
       set(dest, sum);
-      dcpu->o = sum < a ? 0x1 : 0;
+      dcpu->ex = sum < b ? 0x1 : 0;
       await_tick(dcpu);
       break;
     }
 
     case OP_SUB:
-      set(dest, a - b);
-      dcpu->o = a < b ? 0xffff : 0;
+      set(dest, b - a);
+      dcpu->ex = b < a ? 0xffff : 0;
       await_tick(dcpu);
       break;
 
     case OP_MUL:
-      set(dest, a * b);
-      dcpu->o = ((a * b) >> 16) & 0xffff; // per spec
+      set(dest, b * a);
+      dcpu->ex = ((b * a) >> 16) & 0xffff; // per spec
+      await_tick(dcpu);
+      break;
+
+    case OP_MLI:
+      set(dest, S(b) * S(a));
+      dcpu->ex = ((S(b) * S(a)) >> 16) & 0xffff; // per spec
       await_tick(dcpu);
       break;
 
     case OP_DIV:
-      if (b == 0) {
+      if (a == 0) {
         set(dest, 0);
-        dcpu->o = 0;
+        dcpu->ex = 0;
       } else {
-        set(dest, a / b);
-        dcpu->o = ((a << 16) / b) & 0xffff; // per spec
+        set(dest, b / a);
+        dcpu->ex = ((b << 16) / a) & 0xffff; // per spec
+      }
+      await_tick(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_DVI:
+      if (a == 0) {
+        set(dest, 0);
+        dcpu->ex = 0;
+      } else {
+        // TODO this should be enforced manually, but gcc/x86 does what we want...
+        set(dest, S(b) / S(a));
+        dcpu->ex = ((S(b) << 16) / S(a)) & 0xffff; // per spec
       }
       await_tick(dcpu);
       await_tick(dcpu);
       break;
 
     case OP_MOD:
-      if (b == 0)
+      if (a == 0)
         set(dest, 0);
       else
-        set(dest, a % b);
+        set(dest, b % a);
       await_tick(dcpu);
       await_tick(dcpu);
       break;
 
-    case OP_SHL:
-      set(dest, a << b);
-      dcpu->o = ((a << b) >> 16) & 0xffff; // per spec
+    case OP_MDI:
+      if (a == 0)
+        set(dest, 0);
+      else
+        // TODO this should be enforced manually, but gcc/x86 does what we want...
+        set(dest, S(b) % S(a));
       await_tick(dcpu);
-      break;
-
-    case OP_SHR:
-      set(dest, a >> b);
-      dcpu->o = ((a << 16) >> b) & 0xffff; // per spec
       await_tick(dcpu);
       break;
 
     case OP_AND:
-      set(dest, a & b);
+      set(dest, b & a);
       break;
 
     case OP_BOR:
-      set(dest, a | b);
+      set(dest, b | a);
       break;
 
     case OP_XOR:
-      set(dest, a ^ b);
+      set(dest, b ^ a);
       break;
 
-    case OP_IFE:
-      if (!(a == b)) skip(dcpu);
+    case OP_SHR:
+      set(dest, b >> a);
+      dcpu->ex = ((b << 16) >> a) & 0xffff; // per spec
       await_tick(dcpu);
       break;
 
-    case OP_IFN:
-      if (!(a != b)) skip(dcpu);
+    case OP_ASR: // TODO!!
+      set(dest, S(b) >> a);
+      dcpu->ex = ((S(b) << 16) >> a) & 0xffff; // per spec
       await_tick(dcpu);
       break;
 
-    case OP_IFG:
-      if (!(a > b)) skip(dcpu);
+    case OP_SHL:
+      set(dest, b << a);
+      dcpu->ex = ((b << a) >> 16) & 0xffff; // per spec
       await_tick(dcpu);
       break;
 
     case OP_IFB:
-      if (!(a & b)) skip(dcpu);
+      if (!(b & a)) skip(dcpu);
       await_tick(dcpu);
       break;
+
+    case OP_IFC:
+      if (b & a) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFE:
+      if (!(b == a)) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFN:
+      if (!(b != a)) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFG:
+      if (!(b > a)) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFA:
+      if (!(S(b) > S(a))) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFL:
+      if (!(b < a)) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_IFU:
+      if (!(S(b) < S(a))) skip(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_ADX: {
+      u16 sum = b + a + dcpu->ex;
+      set(dest, sum);
+      dcpu->ex = sum < b ? 0x1 : 0; // TODO wrong
+      await_tick(dcpu);
+      await_tick(dcpu);
+      break;
+    }
+
+    case OP_SBX:
+      set(dest, b - a + dcpu->ex);
+      dcpu->ex = b < a ? 0xffff : 0; // TODO wrong
+      await_tick(dcpu);
+      await_tick(dcpu);
+      break;
+
+    case OP_STI:
+      set(dest, a);
+      dcpu->reg[REG_I]++;
+      dcpu->reg[REG_J]++;
+      await_tick(dcpu);
+      break;
+
+    case OP_STD:
+      set(dest, a);
+      dcpu->reg[REG_I]--;
+      dcpu->reg[REG_J]--;
+      await_tick(dcpu);
+      break;
+
+    default:
+      dcpu_msg("reserved instruction: 0x%04x, pc now 0x%04x.\n",
+        opcode, dcpu->pc);
+      return A_BREAK;
   }
 
   return A_CONTINUE;
@@ -339,9 +425,9 @@ static action_t execute(dcpu *dcpu, u16 instr) {
 
 
 static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
-  uint8_t opcode = arg_a(instr);
+  uint8_t opcode = arg_b(instr);
   u16 *dest;
-  u16 a = decode_arg(dcpu, arg_b(instr), &dest, true);
+  u16 a = decode_arg(dcpu, arg_a(instr), &dest, true, true);
 
   switch (opcode) {
     case OP_NB_JSR:
@@ -359,8 +445,44 @@ static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
     case OP_NB_DBG:
       return A_BREAK;
 
+    case OP_NB_HCF:
+      dcpu_msg("HCF executed!\n");
+      return A_BREAK;
+
+    case OP_NB_INT:
+      dcpu_msg("TODO INT\n");
+      break;
+
+    case OP_NB_IAG:
+      dcpu_msg("TODO IAG\n");
+      break;
+
+    case OP_NB_IAS:
+      dcpu_msg("TODO IAS\n");
+      break;
+
+    case OP_NB_IAP:
+      dcpu_msg("TODO IAP\n");
+      break;
+
+    case OP_NB_IAQ:
+      dcpu_msg("TODO IAQ\n");
+      break;
+
+    case OP_NB_HWN:
+      dcpu_msg("TODO HWN\n");
+      break;
+
+    case OP_NB_HWQ:
+      dcpu_msg("TODO HWQT\n");
+      break;
+
+    case OP_NB_HWI:
+      dcpu_msg("TODO HWI\n");
+      break;
+
     default:
-      dcpu_msg("reserved instruction: 0x%04x, pc now 0x%04x.\n",
+      dcpu_msg("reserved non-basic instruction: 0x%04x, pc now 0x%04x.\n",
         opcode, dcpu->pc);
       return A_BREAK;
   }

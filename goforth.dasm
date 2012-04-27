@@ -975,7 +975,7 @@ number_:    set push, 0             ; number is positive
             sub a, 1                ; skip '-'
             add b, 1
 numb_.pos:  jsr tonum_
-numb_.end:  ife pop, 0              ; if positive, we're done
+numb_.end:  ife 0, pop              ; if positive, we're done
             set pc, pop
             xor i, 0xffff           ; else negate
             add i, 1

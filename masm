@@ -18,9 +18,10 @@ class Basic(object):
         self.code = code
     def make(self, args):
         if len(args) != 2: raise SyntaxError("expected 2 args")
-        a, b = [parse_arg(x) for x in args]
+        b = parse_arg(args[0], False)
+        a = parse_arg(args[1], True)
         def emit(program):
-            program.append((b.value() << 10) + (a.value() << 4) + self.code)
+            program.append((a.value() << 10) + (b.value() << 5) + self.code)
             a.emit(program)
             b.emit(program)
         return emit
@@ -31,10 +32,10 @@ class NonBasic(object):
         self.name = name
         self.code = code
     def make(self, args):
-        a = parse_arg(args[0])
+        a = parse_arg(args[0], True)
         if len(args) != 1: raise SyntaxError("expected 1 arg")
         def emit(program):
-            program.append((a.value() << 10) + (self.code << 4) + 0x00)
+            program.append((a.value() << 10) + (self.code << 5) + 0x00)
             a.emit(program)
         return emit
 
@@ -78,27 +79,48 @@ class DZW(object):
         return emit
 
 # basic ops...
-Basic("SET", 0x1)
-Basic("ADD", 0x2)
-Basic("SUB", 0x3)
-Basic("MUL", 0x4)
-Basic("DIV", 0x5)
-Basic("MOD", 0x6)
-Basic("SHL", 0x7)
-Basic("SHR", 0x8)
-Basic("AND", 0x9)
-Basic("BOR", 0xA)
-Basic("XOR", 0xB)
-Basic("IFE", 0xC)
-Basic("IFN", 0xD)
-Basic("IFG", 0xE)
-Basic("IFB", 0xF)
+Basic("SET", 0x01)
+Basic("ADD", 0x02)
+Basic("SUB", 0x03)
+Basic("MUL", 0x04)
+Basic("MLI", 0x05)
+Basic("DIV", 0x06)
+Basic("DVI", 0x07)
+Basic("MOD", 0x08)
+Basic("MDI", 0x09)
+Basic("AND", 0x0a)
+Basic("BOR", 0x0b)
+Basic("XOR", 0x0c)
+Basic("SHR", 0x0d)
+Basic("ASR", 0x0e)
+Basic("SHL", 0x0f)
+Basic("IFB", 0x10)
+Basic("IFC", 0x11)
+Basic("IFE", 0x12)
+Basic("IFN", 0x13)
+Basic("IFG", 0x14)
+Basic("IFA", 0x15)
+Basic("IFL", 0x16)
+Basic("IFU", 0x17)
+Basic("ADX", 0x1a)
+Basic("SBX", 0x1b)
+Basic("STI", 0x1e)
+Basic("STD", 0x1f)
 
 # non-basic ops...
-NonBasic("JSR", 0x1)
-NonBasic("IMG", 0x2) # custom, dump core to file
-NonBasic("DIE", 0x3) # custom, make emulator exit
-NonBasic("DBG", 0x4) # custom, enter emulator debugger
+NonBasic("JSR", 0x01)
+NonBasic("IMG", 0x02) # custom, dump core to file
+NonBasic("DIE", 0x03) # custom, make emulator exit
+NonBasic("DBG", 0x04) # custom, enter emulator debugger
+NonBasic("HCF", 0x07)
+NonBasic("INT", 0x08)
+NonBasic("IAG", 0x09)
+NonBasic("IAS", 0x0a)
+NonBasic("IAP", 0x0b)
+NonBasic("IAQ", 0x0c)
+NonBasic("HWN", 0x10)
+NonBasic("HWQ", 0x11)
+NonBasic("HWI", 0x12)
 
 # pseudo-ops...
 DW()
@@ -125,15 +147,18 @@ class Lit(object):
     # value is either the actual int value, or a string label
     # which can be emitted into the instruction stream and later
     # rewritten...
-    def __init__(self, val, deref=False):
+    def __init__(self, val, deref, inline=False):
         self.val = val
         self.deref = deref
+        self.inline = inline
     def value(self):
         if self.deref: return 0x1e
-        if 0 <= self.val < 0x20: return 0x20 + self.val
+        # TODO self.val == 0xffff should be -1
+        if self.inline and -1 <= self.val < 31: return 0x21 + self.val
         return 0x1f
     def emit(self, prog):
-        if not (0 <= self.val < 0x20):
+        # TODO self.val == 0xffff should be -1
+        if not (self.inline and -1 <= self.val < 31):
             prog.append(self.val)
 
 class Offset(object):
@@ -160,13 +185,14 @@ REGS = {
 }
 
 OPERANDS = dict(REGS.items() + {
-  "POP": Raw(0x18),
   "PEEK": Raw(0x19),
-  "PUSH": Raw(0x1a),
+  #"PICK": Raw(0x1a),   TODO support lit+SP
   "SP": Raw(0x1b),
   "PC": Raw(0x1c),
-  "O": Raw(0x1d)
+  "EX": Raw(0x1d)
 }.items())
+
+PSHP = Raw(0x18)
 
 hex_re = re.compile('0x[0-9A-Fa-f]+')
 dec_re = re.compile('-?[0-9]+')
@@ -181,7 +207,7 @@ def parse_pair(lit, reg):
     try: return Offset(lit, REGS[reg.upper()])
     except KeyError: raise SyntaxError('bad register: ' + reg)
 
-def parse_arg(arg):
+def parse_arg(arg, a):
     if len(arg) == 0: raise SyntaxError("empty arg")
     if arg[0] == '[':
         if arg[-1] != ']': raise SyntaxError("mismatched brackets")
@@ -190,7 +216,13 @@ def parse_arg(arg):
         try: return Deref(OPERANDS[arg.upper()])
         except KeyError: return Lit(parse_lit(arg), True)
     if arg.upper() in OPERANDS: return OPERANDS[arg.upper()]
-    return Lit(parse_lit(arg))
+    if arg.upper() == 'POP':
+        if a: return PSHP
+        else: raise SyntaxError("'pop' is allowed only in 'a' position")
+    if arg.upper() == 'PUSH':
+        if not a: return PSHP
+        else: raise SyntaxError("'push' is allowed only in 'b' position")
+    return Lit(parse_lit(arg), False, a)
 
 # this is a terrible hack, but it was so tempting...
 # note that we special-case ";" as 'not a comment' so that we can

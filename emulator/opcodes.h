@@ -35,38 +35,63 @@
   apply(OP_ADD, "add") \
   apply(OP_SUB, "sub") \
   apply(OP_MUL, "mul") \
+  apply(OP_MLI, "mli") \
   apply(OP_DIV, "div") \
+  apply(OP_DVI, "dvi") \
   apply(OP_MOD, "mod") \
-  apply(OP_SHL, "shl") \
-  apply(OP_SHR, "shr") \
+  apply(OP_MDI, "mdi") \
   apply(OP_AND, "and") \
   apply(OP_BOR, "bor") \
   apply(OP_XOR, "xor") \
+  apply(OP_SHR, "shr") \
+  apply(OP_ASR, "asr") \
+  apply(OP_SHL, "shl") \
+  apply(OP_IFB, "ifb") \
+  apply(OP_IFC, "ifc") \
   apply(OP_IFE, "ife") \
   apply(OP_IFN, "ifn") \
   apply(OP_IFG, "ifg") \
-  apply(OP_IFB, "ifb")
+  apply(OP_IFA, "ifa") \
+  apply(OP_IFL, "ifl") \
+  apply(OP_IFU, "ifu") \
+  apply(OP_XX0, "xx0") \
+  apply(OP_XX1, "xx1") \
+  apply(OP_ADX, "adx") \
+  apply(OP_SBX, "sbx") \
+  apply(OP_XX2, "xx2") \
+  apply(OP_XX3, "xx3") \
+  apply(OP_STI, "sti") \
+  apply(OP_STD, "std")
 
 #define ID(x, _) x,
 enum opcode {
   FOR_EACH_OP(ID)
-  NUM_OPCODES
 };
 #undef ID
 
 
 #define FOR_EACH_NBOP(apply) \
-  apply(OP_NB_NON, "xxx") \
-  apply(OP_NB_JSR, "jsr") \
+  apply(OP_NB_NON, "xxx", 0x00) \
+  apply(OP_NB_JSR, "jsr", 0x01) \
   /* custom ops */ \
-  apply(OP_NB_IMG, "img") /* save core image to core.img, up to address in a */ \
-  apply(OP_NB_DIE, "die") /* exit emulator */ \
-  apply(OP_NB_DBG, "dbg") /* enter the emulator debugger */
+  apply(OP_NB_IMG, "img", 0x02) /* save core to core.img, up to addr in a */ \
+  apply(OP_NB_DIE, "die", 0x03) /* exit emulator */ \
+  apply(OP_NB_DBG, "dbg", 0x04) /* enter the emulator debugger */ \
+  \
+  apply(OP_NB_HCF, "hcf", 0x07) \
+  apply(OP_NB_INT, "int", 0x08) \
+  apply(OP_NB_IAG, "iag", 0x09) \
+  apply(OP_NB_IAS, "ias", 0x0a) \
+  apply(OP_NB_IAP, "iap", 0x0b) \
+  apply(OP_NB_IAQ, "iaq", 0x0c) \
+  apply(OP_NB_HWN, "hwn", 0x10) \
+  apply(OP_NB_HWQ, "hwq", 0x11) \
+  apply(OP_NB_HWI, "hwi", 0x12)
 
-#define ID(x, _) x,
+#define ID(x, _, n) x = n,
 enum nbopcode {
   FOR_EACH_NBOP(ID)
-  NUM_NBOPCODES
+  NUM_NBOPCODES // max number, may be sparse...
 };
 #undef ID
 

@@ -56,16 +56,16 @@ static void dumpram(dcpu *dcpu, u16 addr, int len) {
 
 static void dumpheader(void) {
   dcpu_msg(
-      "pc   sp   o    a    b    c    x    y    z    i    j    instruction\n"
-      "---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- -----------\n");
+      "pc   sp   ex   ia   a    b    c    x    y    z    i    j    instruction\n"
+      "---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- -----------\n");
 }
 
 static void dumpstate(dcpu *d) {
   char out[128];
   disassemble(d->ram + d->pc, out);
   dcpu_msg(
-      "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %s\n",
-      d->pc, d->sp, d->o,
+      "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %s\n",
+      d->pc, d->sp, d->ex, d->ia,
       d->reg[0], d->reg[1], d->reg[2], d->reg[3],
       d->reg[4], d->reg[5], d->reg[6], d->reg[7],
       out);

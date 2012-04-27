@@ -28,7 +28,6 @@
 /* A DCPU-16 Disassembler */
 
 /* DCPU-16 Spec is Copyright 2012 Mojang */
-/* http://0x10c.com/doc/dcpu-16.txt */
 
 #include <stdio.h>
 #include <string.h>
@@ -38,52 +37,47 @@
 
 static const char regs[8] = "abcxyzij";
 
-static u16 *dis_operand(u16 *pc, u16 n, char *out) {
+static u16 *dis_operand(u16 *pc, u16 n, char *out, char *pshp) {
   if (n < 0x08) {
     sprintf(out, "%c", regs[n & 7]);
   } else if (n < 0x10) {
     sprintf(out, "[%c]", regs[n & 7]);
   } else if (n < 0x18) {
-    sprintf(out, "[%c, 0x%04x]", regs[n & 7], *pc++);
+    sprintf(out, "[0x%x+%c]", *pc++, regs[n & 7]);
   } else if (n > 0x1f) {
-    sprintf(out, "%d", n - 0x20);
+    sprintf(out, "0x%x", (u16)(n - 0x21));
   } else switch (n) {
-    case 0x18: strcpy(out, "pop"); break;
+    case 0x18: strcpy(out, pshp); break;
     case 0x19: strcpy(out, "peek"); break;
-    case 0x1a: strcpy(out, "push"); break;
+    case 0x1a: sprintf(out, "[0x%x+sp]", *pc++); break;
     case 0x1b: strcpy(out, "sp"); break;
     case 0x1c: strcpy(out, "pc"); break;
-    case 0x1d: strcpy(out, "o"); break;
+    case 0x1d: strcpy(out, "ex"); break;
     case 0x1e: sprintf(out, "[0x%04x]", *pc++); break;
-    case 0x1f: sprintf(out, "0x%04x", *pc++); break;
+    case 0x1f: sprintf(out, "0x%x", *pc++); break;
   }
   return pc;  
 }
 
 u16 *disassemble(u16 *pc, char *out) {
   u16 n = *pc++;
-  u16 op = n & 0xf;
-  u16 a = (n >> 4) & 0x3f;
-  u16 b = (n >> 10);
+  u16 op = get_opcode(n);
+  u16 b = arg_b(n);
+  u16 a = arg_a(n);
   if (op > 0) {
-    if ((n & 0x03ff) == 0x1c1) {
-      sprintf(out,"jmp ");
-      pc = dis_operand(pc, b, out+strlen(out));
-      return pc;
-    }
     sprintf(out, "%s ", opnames[op]);
-    pc = dis_operand(pc, a, out+strlen(out));
+    pc = dis_operand(pc, b, out+strlen(out), "push");
     sprintf(out+strlen(out),", ");
-    pc = dis_operand(pc, b, out+strlen(out)); 
+    pc = dis_operand(pc, a, out+strlen(out), "pop"); 
     return pc;
   }
-  if (a > 0 && a < NUM_NBOPCODES) {
-    sprintf(out, "%s ", nbopnames[a]);
-    pc = dis_operand(pc, b, out+strlen(out));
+  if (b > 0 && b < NUM_NBOPCODES && nbopnames[b]) {
+    sprintf(out, "%s ", nbopnames[b]);
+    pc = dis_operand(pc, a, out+strlen(out), "pop");
     return pc;
   }
-  sprintf(out,"unk[%02x] ", a);
-  pc = dis_operand(pc, b, out+strlen(out));
+  sprintf(out,"unk[%02x] ", b);
+  pc = dis_operand(pc, a, out+strlen(out), "pop");
   return pc;
 }
 

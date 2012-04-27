@@ -147,6 +147,7 @@ int main(int argc, char **argv) {
   // init term first so that image load status is visible...
   block_sigint();
   dcpu_initterm();
+  dcpu_initops();
   if (!dcpu_init(&dcpu, image, khz, bigend)) {
     // ...even though that makes teardown a little uglier
     dcpu_killterm();

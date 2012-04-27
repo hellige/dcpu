@@ -37,9 +37,10 @@ const char *opnames[] = {
 };
 #undef NAME
 
-#define NAME(_, x) x,
-const char *nbopnames[] = {
+const char *nbopnames[NUM_NBOPCODES];
+
+#define NAME(_, x, c) nbopnames[c] = x;
+void dcpu_initops(void) {
   FOR_EACH_NBOP(NAME)
-  NULL
-};
+}
 #undef NAME
