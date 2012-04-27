@@ -35,7 +35,7 @@
 typedef uint16_t u16;
 typedef uint64_t tstamp_t;
 
-#define DCPU_VERSION  "1.5-mh"
+#define DCPU_VERSION  "1.7-mh"
 #define DCPU_MODS     "+img +die +dbg"
 #define COREFILE_NAME "core.img"
 #define DEFAULT_KHZ   150
