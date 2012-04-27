@@ -71,8 +71,8 @@ u16 *disassemble(u16 *pc, char *out) {
     pc = dis_operand(pc, a, out+strlen(out), "pop"); 
     return pc;
   }
-  if (b > 0 && b < NUM_NBOPCODES && nbopnames[b]) {
-    sprintf(out, "%s ", nbopnames[b]);
+  if (b > 0 && b < NUM_SPOPCODES && spopnames[b]) {
+    sprintf(out, "%s ", spopnames[b]);
     pc = dis_operand(pc, a, out+strlen(out), "pop");
     return pc;
   }

@@ -37,10 +37,10 @@ const char *opnames[] = {
 };
 #undef NAME
 
-const char *nbopnames[NUM_NBOPCODES];
+const char *spopnames[NUM_SPOPCODES];
 
-#define NAME(_, x, c) nbopnames[c] = x;
+#define NAME(_, x, c) spopnames[c] = x;
 void dcpu_initops(void) {
-  FOR_EACH_NBOP(NAME)
+  FOR_EACH_SPOP(NAME)
 }
 #undef NAME

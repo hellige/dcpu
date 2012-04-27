@@ -70,34 +70,33 @@ enum opcode {
 #undef ID
 
 
-#define FOR_EACH_NBOP(apply) \
-  apply(OP_NB_NON, "xxx", 0x00) \
-  apply(OP_NB_JSR, "jsr", 0x01) \
+#define FOR_EACH_SPOP(apply) \
+  apply(OP_SP_NON, "xxx", 0x00) \
+  apply(OP_SP_JSR, "jsr", 0x01) \
   /* custom ops */ \
-  apply(OP_NB_IMG, "img", 0x02) /* save core to core.img, up to addr in a */ \
-  apply(OP_NB_DIE, "die", 0x03) /* exit emulator */ \
-  apply(OP_NB_DBG, "dbg", 0x04) /* enter the emulator debugger */ \
+  apply(OP_SP_IMG, "img", 0x02) /* save core to core.img, up to addr in a */ \
+  apply(OP_SP_DIE, "die", 0x03) /* exit emulator */ \
+  apply(OP_SP_DBG, "dbg", 0x04) /* enter the emulator debugger */ \
   \
-  apply(OP_NB_HCF, "hcf", 0x07) \
-  apply(OP_NB_INT, "int", 0x08) \
-  apply(OP_NB_IAG, "iag", 0x09) \
-  apply(OP_NB_IAS, "ias", 0x0a) \
-  apply(OP_NB_IAP, "iap", 0x0b) \
-  apply(OP_NB_IAQ, "iaq", 0x0c) \
-  apply(OP_NB_HWN, "hwn", 0x10) \
-  apply(OP_NB_HWQ, "hwq", 0x11) \
-  apply(OP_NB_HWI, "hwi", 0x12)
+  apply(OP_SP_INT, "int", 0x08) \
+  apply(OP_SP_IAG, "iag", 0x09) \
+  apply(OP_SP_IAS, "ias", 0x0a) \
+  apply(OP_SP_RFI, "rfi", 0x0b) \
+  apply(OP_SP_IAQ, "iaq", 0x0c) \
+  apply(OP_SP_HWN, "hwn", 0x10) \
+  apply(OP_SP_HWQ, "hwq", 0x11) \
+  apply(OP_SP_HWI, "hwi", 0x12)
 
 #define ID(x, _, n) x = n,
-enum nbopcode {
-  FOR_EACH_NBOP(ID)
-  NUM_NBOPCODES // max number, may be sparse...
+enum spopcode {
+  FOR_EACH_SPOP(ID)
+  NUM_SPOPCODES // max number, may be sparse...
 };
 #undef ID
 
 
 extern const char *opnames[];
-extern const char *nbopnames[];
+extern const char *spopnames[];
 
 
 #endif

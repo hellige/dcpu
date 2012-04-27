@@ -227,14 +227,14 @@ static inline void skip(dcpu *dcpu) {
 }
 
 
-static action_t exec_nonbasic(dcpu *dcpu, u16 instr);
+static action_t exec_special(dcpu *dcpu, u16 instr);
 
 static action_t execute(dcpu *dcpu, u16 instr) {
   u16 *dest;
   u16 opcode = get_opcode(instr);
 
-  // dispatch non-basic instruction before decoding args
-  if (!opcode) return exec_nonbasic(dcpu, instr);
+  // dispatch special instruction before decoding args
+  if (!opcode) return exec_special(dcpu, instr);
 
   u16 a = decode_arg(dcpu, arg_a(instr), NULL, true, true);
   u16 b = decode_arg(dcpu, arg_b(instr), &dest, true, false);
@@ -329,21 +329,19 @@ static action_t execute(dcpu *dcpu, u16 instr) {
     case OP_SHR:
       set(dest, b >> a);
       dcpu->ex = ((b << 16) >> a) & 0xffff; // per spec
-      await_tick(dcpu);
       break;
 
     case OP_ASR: // TODO!!
       set(dest, S(b) >> a);
       dcpu->ex = ((S(b) << 16) >> a) & 0xffff; // per spec
-      await_tick(dcpu);
       break;
 
     case OP_SHL:
       set(dest, b << a);
       dcpu->ex = ((b << a) >> 16) & 0xffff; // per spec
-      await_tick(dcpu);
       break;
 
+    // TODO: these should skip subsequent IF* on failure...
     case OP_IFB:
       if (!(b & a)) skip(dcpu);
       await_tick(dcpu);
@@ -424,60 +422,56 @@ static action_t execute(dcpu *dcpu, u16 instr) {
 }
 
 
-static action_t exec_nonbasic(dcpu *dcpu, u16 instr) {
+static action_t exec_special(dcpu *dcpu, u16 instr) {
   uint8_t opcode = arg_b(instr);
   u16 *dest;
   u16 a = decode_arg(dcpu, arg_a(instr), &dest, true, true);
 
   switch (opcode) {
-    case OP_NB_JSR:
+    case OP_SP_JSR:
       dcpu->ram[--dcpu->sp] = dcpu->pc;
       dcpu->pc = a;
       break;
 
-    case OP_NB_IMG:
+    case OP_SP_IMG:
       dcpu_coredump(dcpu, a);
       break;
 
-    case OP_NB_DIE:
+    case OP_SP_DIE:
       return A_EXIT;
 
-    case OP_NB_DBG:
+    case OP_SP_DBG:
       return A_BREAK;
 
-    case OP_NB_HCF:
-      dcpu_msg("HCF executed!\n");
-      return A_BREAK;
-
-    case OP_NB_INT:
+    case OP_SP_INT:
       dcpu_msg("TODO INT\n");
       break;
 
-    case OP_NB_IAG:
+    case OP_SP_IAG:
       dcpu_msg("TODO IAG\n");
       break;
 
-    case OP_NB_IAS:
+    case OP_SP_IAS:
       dcpu_msg("TODO IAS\n");
       break;
 
-    case OP_NB_IAP:
-      dcpu_msg("TODO IAP\n");
+    case OP_SP_RFI:
+      dcpu_msg("TODO RFI\n");
       break;
 
-    case OP_NB_IAQ:
+    case OP_SP_IAQ:
       dcpu_msg("TODO IAQ\n");
       break;
 
-    case OP_NB_HWN:
+    case OP_SP_HWN:
       dcpu_msg("TODO HWN\n");
       break;
 
-    case OP_NB_HWQ:
+    case OP_SP_HWQ:
       dcpu_msg("TODO HWQT\n");
       break;
 
-    case OP_NB_HWI:
+    case OP_SP_HWI:
       dcpu_msg("TODO HWI\n");
       break;
 

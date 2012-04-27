@@ -26,7 +26,7 @@ class Basic(object):
             b.emit(program)
         return emit
 
-class NonBasic(object):
+class Special(object):
     def __init__(self, name, code):
         OPCODES[name] = self
         self.name = name
@@ -107,20 +107,19 @@ Basic("SBX", 0x1b)
 Basic("STI", 0x1e)
 Basic("STD", 0x1f)
 
-# non-basic ops...
-NonBasic("JSR", 0x01)
-NonBasic("IMG", 0x02) # custom, dump core to file
-NonBasic("DIE", 0x03) # custom, make emulator exit
-NonBasic("DBG", 0x04) # custom, enter emulator debugger
-NonBasic("HCF", 0x07)
-NonBasic("INT", 0x08)
-NonBasic("IAG", 0x09)
-NonBasic("IAS", 0x0a)
-NonBasic("IAP", 0x0b)
-NonBasic("IAQ", 0x0c)
-NonBasic("HWN", 0x10)
-NonBasic("HWQ", 0x11)
-NonBasic("HWI", 0x12)
+# special ops...
+Special("JSR", 0x01)
+Special("IMG", 0x02) # custom, dump core to file
+Special("DIE", 0x03) # custom, make emulator exit
+Special("DBG", 0x04) # custom, enter emulator debugger
+Special("INT", 0x08)
+Special("IAG", 0x09)
+Special("IAS", 0x0a)
+Special("RFI", 0x0b)
+Special("IAQ", 0x0c)
+Special("HWN", 0x10)
+Special("HWQ", 0x11)
+Special("HWI", 0x12)
 
 # pseudo-ops...
 DW()
