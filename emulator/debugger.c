@@ -62,7 +62,7 @@ static void dumpheader(void) {
 
 static void dumpstate(dcpu *d) {
   char out[128];
-  disassemble(d->ram + d->pc, out);
+  dcpu_disassemble(d->ram + d->pc, out);
   dcpu_msg(
       "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %s\n",
       d->pc, d->sp, d->ex, d->ia,

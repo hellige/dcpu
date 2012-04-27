@@ -53,13 +53,37 @@ static inline u16 color(int fg, int bg) {
     : (fg % 8) * 8 + (bg % 8) + 1;
 }
 
-void dcpu_initterm(void) {
+static u16 kbd_hwi(dcpu *dcpu) {
+  (void)dcpu;
+  dcpu_msg("kbd hwi!\n"); // TODO
+  return 0;
+}
+
+static u16 lem_hwi(dcpu *dcpu) {
+  (void)dcpu;
+  dcpu_msg("lem hwi!\n"); // TODO
+  return 0;
+}
+
+void dcpu_initterm(dcpu *dcpu) {
   term.tickns = 1000000000 / DISPLAY_HZ;
   term.nexttick = dcpu_now();
   term.keyns = 1000000000 / KBD_BAUD;
   term.nextkey = dcpu_now();
   term.keypos = 0;
   term.curborder = 0;
+
+  // set up hardware descriptors
+  device *kbd = dcpu_addhw(dcpu);
+  kbd->id = 0x30cf7406;
+  kbd->version = 1;
+  kbd->mfr = 0x01220423;
+  kbd->hwi = &kbd_hwi;
+  device *lem = dcpu_addhw(dcpu);
+  lem->id = 0x7349f615;
+  lem->version = 0x1802;
+  lem->mfr = 0x1c6c8b36;
+  lem->hwi = &lem_hwi;
 
   // should be done prior to initscr, and it doesn't matter if we do it twice
   initscr();

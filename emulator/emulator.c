@@ -70,7 +70,7 @@ static inline void await_tick(dcpu *dcpu) {
 }
 
 
-bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz, bool bigend) {
+void dcpu_init(dcpu *dcpu, uint32_t khz) {
   dcpu->tickns = 1000000 / khz;
 
   dcpu->sp = 0;
@@ -79,7 +79,13 @@ bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz, bool bigend) {
   dcpu->ia = 0;
   for (int i = 0; i < NREGS; i++) dcpu->reg[i] = 0;
   for (int i = 0; i < RAM_WORDS; i++) dcpu->ram[i] = 0;
+  dcpu->intqhead = dcpu->intq;
+  dcpu->intqtail = dcpu->intq;
 
+  dcpu->nhw = 0;
+}
+
+bool dcpu_loadcore(dcpu *dcpu, const char *image, bool bigend) {
   FILE *img = fopen(image, "r");
   if (!img) {
     dcpu_msg("error reading image '%s': %s\n", image, strerror(errno));
@@ -444,35 +450,70 @@ static action_t exec_special(dcpu *dcpu, u16 instr) {
       return A_BREAK;
 
     case OP_SP_INT:
-      dcpu_msg("TODO INT\n");
+      if (dcpu->ia != 0) {
+        // TODO queueing?
+        // this is really the int triggering code, i guess, which should 
+        // happen between instructions if the queue is non-empty.
+        dcpu->qints = true;
+        dcpu->ram[--dcpu->sp] = dcpu->pc;
+        dcpu->ram[--dcpu->sp] = dcpu->reg[REG_A];
+        dcpu->pc = dcpu->ia;
+        dcpu->reg[REG_A] = a;
+      }
+      await_tick(dcpu);
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_SP_IAG:
-      dcpu_msg("TODO IAG\n");
+      set(dest, dcpu->ia);
       break;
 
     case OP_SP_IAS:
-      dcpu_msg("TODO IAS\n");
+      dcpu->ia = a;
       break;
 
     case OP_SP_RFI:
-      dcpu_msg("TODO RFI\n");
+      dcpu->qints = false;
+      dcpu->reg[REG_A] = dcpu->ram[dcpu->sp++];
+      dcpu->pc = dcpu->ram[dcpu->sp++];
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_SP_IAQ:
-      dcpu_msg("TODO IAQ\n");
+      dcpu->qints = a;
+      await_tick(dcpu);
       break;
 
     case OP_SP_HWN:
-      dcpu_msg("TODO HWN\n");
+      set(dest, dcpu->nhw);
+      await_tick(dcpu);
       break;
 
     case OP_SP_HWQ:
-      dcpu_msg("TODO HWQT\n");
+      if (a < dcpu->nhw) {
+        uint32_t hwid = dcpu->hw[a].id;
+        uint32_t hwmfr = dcpu->hw[a].mfr;
+        dcpu->reg[REG_A] = hwid & 0xffff;
+        dcpu->reg[REG_B] = hwid >> 16;
+        dcpu->reg[REG_C] = dcpu->hw[a].version;
+        dcpu->reg[REG_X] = hwmfr & 0xffff;
+        dcpu->reg[REG_Y] = hwmfr >> 16;
+      }
+      await_tick(dcpu);
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     case OP_SP_HWI:
-      dcpu_msg("TODO HWI\n");
+      if (a < dcpu->nhw) {
+        u16 cycles = dcpu->hw[a].hwi(dcpu);
+        while (cycles--) await_tick(dcpu);
+      }
+      await_tick(dcpu);
+      await_tick(dcpu);
+      await_tick(dcpu);
       break;
 
     default:

@@ -43,6 +43,11 @@ typedef uint64_t tstamp_t;
 #define RAM_WORDS 0x10000
 // A, B, C, X, Y, Z, I, J
 #define NREGS     8
+#define REG_A     0
+#define REG_B     1
+#define REG_C     2
+#define REG_X     3
+#define REG_Y     4
 #define REG_I     6
 #define REG_J     7
 #define OP_MASK   0x1f
@@ -50,6 +55,8 @@ typedef uint64_t tstamp_t;
 #define ARGB_MASK 0x1f
 #define ARGA_MASK 0x3f
 #define ARGB_SIZE 5
+#define INTQ_SIZE 256
+#define HW_SIZE   8
 
 #define DISPLAY_HZ    30
 #define VRAM_ADDR     0x8000
@@ -59,6 +66,15 @@ typedef uint64_t tstamp_t;
 #define KBD_BAUD      4000
 #define KBD_ADDR      0x9000
 #define KBD_BUFSIZ    16
+
+struct dcpu_t;
+
+typedef struct device_t {
+  uint32_t id;
+  uint32_t mfr;
+  u16 version;
+  u16 (*hwi)(struct dcpu_t *);
+} device;
 
 typedef struct dcpu_t {
   bool detect_loops;
@@ -70,6 +86,16 @@ typedef struct dcpu_t {
   u16 ia;
   u16 reg[NREGS];
   u16 ram[RAM_WORDS];
+
+  // interrupt queue
+  bool qints;
+  u16 intq[INTQ_SIZE+1]; // one extra slot for overflow detection
+  u16 *intqhead;
+  u16 *intqtail;
+
+  // hardware devices.
+  u16 nhw;
+  device hw[HW_SIZE];
 } dcpu;
 
 typedef enum {
@@ -91,26 +117,29 @@ static inline uint8_t arg_a(u16 instr) {
   return (instr >> (OP_SIZE + ARGB_SIZE)) & ARGA_MASK;
 }
 
+static inline device *dcpu_addhw(dcpu *dcpu) {
+  return &dcpu->hw[dcpu->nhw++];
+}
 
 // disassembler.c
-extern u16 *disassemble(u16 *pc, char *out);
+extern u16 *dcpu_disassemble(u16 *pc, char *out);
 
-// emulate.c
+// emulator.c
 extern tstamp_t dcpu_now();
-extern bool dcpu_init(dcpu *dcpu, const char *image, uint32_t khz,
-  bool bigend);
+extern void dcpu_init(dcpu *dcpu, uint32_t khz);
+bool dcpu_loadcore(dcpu *dcpu, const char *image, bool bigend);
 extern void dcpu_coredump(dcpu *dcpu, uint32_t limit);
 extern void dcpu_run(dcpu *dcpu, bool debugboot);
 extern action_t dcpu_step(dcpu *dcpu);
 
-// debug.c
+// debugger.c
 extern bool dcpu_debug(dcpu *dcpu);
 
 // opcodes.c
 extern void dcpu_initops(void);
 
 // terminal.c
-extern void dcpu_initterm(void);
+extern void dcpu_initterm(dcpu *dcpu);
 extern void dcpu_msg(char *fmt, ...)
   __attribute__ ((format (printf, 1, 2)));
 extern int dcpu_getch(void);

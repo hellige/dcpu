@@ -59,16 +59,18 @@ static u16 *dis_operand(u16 *pc, u16 n, char *out, char *pshp) {
   return pc;  
 }
 
-u16 *disassemble(u16 *pc, char *out) {
+u16 *dcpu_disassemble(u16 *pc, char *out) {
   u16 n = *pc++;
   u16 op = get_opcode(n);
   u16 b = arg_b(n);
   u16 a = arg_a(n);
   if (op > 0) {
     sprintf(out, "%s ", opnames[op]);
-    pc = dis_operand(pc, b, out+strlen(out), "push");
-    sprintf(out+strlen(out),", ");
-    pc = dis_operand(pc, a, out+strlen(out), "pop"); 
+    char tmp[64];
+    pc = dis_operand(pc, a, tmp, "pop"); 
+    pc = dis_operand(pc, b, out + strlen(out), "push");
+    strcat(out, ", ");
+    strcat(out, tmp);
     return pc;
   }
   if (b > 0 && b < NUM_SPOPCODES && spopnames[b]) {
