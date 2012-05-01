@@ -64,8 +64,6 @@ typedef uint64_t tstamp_t;
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
 #define KBD_BAUD      4000
-#define KBD_ADDR      0x9000
-#define KBD_BUFSIZ    16
 
 struct dcpu_t;
 

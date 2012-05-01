@@ -41,7 +41,6 @@ struct term_t {
   tstamp_t nexttick;
   tstamp_t keyns;
   tstamp_t nextkey;
-  u16 keypos;
   u16 curborder;
 };
 
@@ -53,9 +52,48 @@ static inline u16 color(int fg, int bg) {
     : (fg % 8) * 8 + (bg % 8) + 1;
 }
 
+static void readkey(dcpu *dcpu) {
+  int c = getch();
+  switch (c) {
+    case 0x04:
+      // if ctrl-d, just ungetch it to the next tick. i guess we could
+      // handle it here, but it seems more orthogonal to handle it in
+      // only place
+      ungetch(c);
+      // fall through...
+    case ERR: c = 0; break; // no key. no problem.
+    // TODO redo key mappings per spec...
+    // remap bs and del to bs, just in case
+    case KEY_BACKSPACE: c = 0x08; break;
+    case 0x7f: c = 0x08; break;
+  }
+  dcpu->reg[REG_C] = c; // always set c
+}
+
 static u16 kbd_hwi(dcpu *dcpu) {
-  (void)dcpu;
-  dcpu_msg("kbd hwi!\n"); // TODO
+  switch (dcpu->reg[REG_A]) {
+    case 0:
+      // clear kbd buf. unsupported (we snarf term buf'ing), so a no-op here.
+      break;
+    case 1:
+      readkey(dcpu);
+      break;
+    case 2:
+      // check if key is currently pressed. curses keypresses are
+      // effectively instantaneous, so the answer is always 'no'.
+      dcpu->reg[REG_C] = 0;
+      break;
+    case 3:
+      // TODO keyboard interrupts
+      if (dcpu->reg[REG_B])
+        dcpu_msg("enabling keyboard interrupts with msg: 0x%04x\n",
+            dcpu->reg[REG_B]);
+      else
+        dcpu_msg("disabling keyboard interrupts");
+      break;
+    default:
+      dcpu_msg("warning: unknown keyboard HWI: 0x%04x\n", dcpu->reg[REG_A]);
+  }
   return 0;
 }
 
@@ -70,7 +108,6 @@ void dcpu_initterm(dcpu *dcpu) {
   term.nexttick = dcpu_now();
   term.keyns = 1000000000 / KBD_BAUD;
   term.nextkey = dcpu_now();
-  term.keypos = 0;
   term.curborder = 0;
 
   // set up hardware descriptors
@@ -118,28 +155,20 @@ void dcpu_killterm(void) {
   endwin();
 }
 
-void readkey(dcpu *dcpu) {
+void checkkey() {
   int c = getch();
-  // always check for ctrl-d, even if kbd buf is full.
-  if (c == 0x04) {
-    // ctrl-d. exit.
-    dcpu_die = true;
-    return;
-  }
-  if (c != -1 && dcpu->ram[KBD_ADDR + term.keypos]) {
-    ungetch(c);
-    return;
-  }
+  // always check for ctrl-d to allow immediate exit
   switch (c) {
-    case ERR: return; // no key. no problem.
-
-    // remap bs and del to bs, just in case
-    case KEY_BACKSPACE: c = 0x08; break;
-    case 0x7f: c = 0x08; break;
+    case 0x04:
+      // ctrl-d. exit.
+      dcpu_die = true;
+      break;
+    case -1:
+      break;
+    default:
+      // TODO keyboard interrupt. also need to check if already delivered.
+      ungetch(c);
   }
-  dcpu->ram[KBD_ADDR + term.keypos] = c;
-  term.keypos += 1;
-  term.keypos %= KBD_BUFSIZ;
 }
 
 int dcpu_getstr(char *buf, int n) {
@@ -209,7 +238,7 @@ void dcpu_termtick(dcpu *dcpu, tstamp_t now) {
   }
 
   if (now > term.nextkey) {
-    readkey(dcpu);
+    checkkey(dcpu);
     term.nextkey += term.keyns;
   }
 }

@@ -92,11 +92,11 @@
 ;     |        |             |
 ;     |        v             |
 ;     | text input buffer    |<--- tib,s0 0xf000
-;     | data stack           |
+;     | data stack/unused    |
+;     |        |             |
+;     |        |             |
 ;     |        |             |
 ;     |        v             |
-;     | reserved (kbd buf)   | 0x9000 - 0x900f
-;     | unused (?)           |
 ;     | reserved (video)     | 0x8000 - 0x8280
 ;     |        ^             |
 ;     |        |             |
@@ -118,8 +118,6 @@
 
 define(s0_, 0xf000)
 define(r0_, 0x0000)
-define(keybuf_, 0x9000)
-define(keybufsiz_, 0x10)
 define(vidram_, 0x8000)
 define(vidramsiz_, 0x0180)
 
@@ -180,20 +178,22 @@ define(defconst, `
             ; return stack grows down from 0xffff
             ; but sp already starts at 0, so we might as well assume it
             set z, s0_              ; data stack grows down from here
-            set [curkey], 0         ; reset keyboard buffer position (see below)
             set [curvid], 0         ; reset video ram position
             set [curline], 0        ; reset current line start position
+            ; TODO locate keyboard/display
+            set [kbd], 0            ; TODO locate
             set y, var_bootword     ; boot up
             next
 
             ; we need a few variables for positions in the various memory
-            ; mapped buffers, but we need to be very sure that they get reset
-            ; to 0 on every boot. we could just stick them somewhere higher in
-            ; the address range (i.e., outside of the saved image), but just
-            ; explicitly setting them is probably safer and clearer.
-curkey:     dw 0                    ; position in keyboard buffer
+            ; mapped buffers, hardware locations, etc., but we need to be very
+            ; sure that they get reset on every boot. we could just stick them
+            ; somewhere higher in the address range (i.e., outside of the
+            ; saved image), but just explicitly setting them is probably safer
+            ; and clearer.
 curvid:     dw 0                    ; position in video ram
 curline:    dw 0                    ; start of current line (for backspace)
+kbd:        dw 0                    ; hardware id of keyboard
 
 
 ; interpreter for variables (and newly created words, per ans)
@@ -696,22 +696,23 @@ zbranch.1:  add z, 1                ; pop
             next
 
 
-            ; awaits a keypress. uses i and returns key in j
-readkey:    set i, [curkey]
-            add i, keybuf_
-            ife [i], 0              ; no key yet...
-            set pc, readkey
-            set j, [i]              ; read it
-            set [i], 0              ; erase it for `next' time
-            add [curkey], 1         ; advance
-            mod [curkey], keybufsiz_
+            ; polls for a keypress. returns key in c.
+            ; polling seems stupid, but there's no low-power mode
+            ; for the cpu, so there's really no reason not to do it.
+readkey:    set push, a             ; save
+            set a, 1                ; a == 1: read key into c
+readkey.1:  hwi [kbd]               ; do the interrupt
+            ife c, 0                ; no key yet...
+            set pc, readkey.1
+            set a, pop              ; restore
             set pc, pop
 
             defcode(key, 0, key)
             sub z, 1
             jsr readkey             ; fetch keypress
-            jsr emit_               ; echo j to the terminal
+            set j, c
             set [z], j
+            jsr emit_               ; echo j to the terminal
             next
 
             defcode(emit, 0, emit)
@@ -789,7 +790,8 @@ scroll_.2:  set [i], 0
 accept.1:   ife a, [z]              ; bail if at limit
             set pc, accept.2
 accept.3:   jsr readkey             ; fetch keypress
-            set [a], j
+            set j, c                ; the emits below expect key in j...
+            set [a], c
             ifn [a], 0x08           ; skip if not backspace/delete
             set pc, accept.4
             jsr emit_               ; erase from the terminal
