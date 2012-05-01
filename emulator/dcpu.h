@@ -59,8 +59,6 @@ typedef uint64_t tstamp_t;
 #define HW_SIZE   8
 
 #define DISPLAY_HZ    30
-#define VRAM_ADDR     0x8000
-#define BORDER_ADDR   0x8280
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
 #define KBD_BAUD      4000

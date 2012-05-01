@@ -41,7 +41,9 @@ struct term_t {
   tstamp_t nexttick;
   tstamp_t keyns;
   tstamp_t nextkey;
+  u16 vram;
   u16 curborder;
+  u16 nextborder;
 };
 
 static struct term_t term;
@@ -94,13 +96,26 @@ static u16 kbd_hwi(dcpu *dcpu) {
     default:
       dcpu_msg("warning: unknown keyboard HWI: 0x%04x\n", dcpu->reg[REG_A]);
   }
-  return 0;
+  return 0; // no extra cycles
 }
 
 static u16 lem_hwi(dcpu *dcpu) {
-  (void)dcpu;
-  dcpu_msg("lem hwi!\n"); // TODO
-  return 0;
+  switch (dcpu->reg[REG_A]) {
+    case 0: // MEM_MAP_SCREEN
+      term.vram = dcpu->reg[REG_B];
+      break;
+    case 1: // MEM_MAP_FONT
+      dcpu_msg("warning: MEM_MAP_FONT unsupported on text-only terminal.\n");
+      break;
+    case 2: // MEM_MAP_PALETTE
+      // TODO should be able to approx. this on on changeable terminals
+      dcpu_msg("warning: MEM_MAP_PALETTE unsupported on text-only terminal.\n");
+      break;
+    case 3: // SET_BORDER_COLOR
+      term.nextborder = dcpu->reg[REG_B] & 0xf;
+      break;
+  }
+  return 0; // no extra cycles
 }
 
 void dcpu_initterm(dcpu *dcpu) {
@@ -109,6 +124,8 @@ void dcpu_initterm(dcpu *dcpu) {
   term.keyns = 1000000000 / KBD_BAUD;
   term.nextkey = dcpu_now();
   term.curborder = 0;
+  term.nextborder = 0;
+  term.vram = 0;
 
   // set up hardware descriptors
   device *kbd = dcpu_addhw(dcpu);
@@ -214,20 +231,25 @@ static void draw(u16 word, u16 row, u16 col) {
   if (blink) wattroff(term.vidwin, A_BLINK);
 }
 
-static void draw_border(dcpu *dcpu) {
-  if (term.curborder != (dcpu->ram[BORDER_ADDR] & 0xf)) {
-    term.curborder = dcpu->ram[BORDER_ADDR] & 0xf;
+static void draw_border() {
+  if (term.curborder != term.nextborder) {
+    term.curborder = term.nextborder;
     wbkgd(term.border, A_NORMAL | COLOR_PAIR(color(0, term.curborder)) | ' '); 
     wrefresh(term.border);
   }
 }
 
 void dcpu_redraw(dcpu *dcpu) {
-  draw_border(dcpu);
-  u16 *addr = &dcpu->ram[VRAM_ADDR];
-  for (u16 i = 0; i < SCR_HEIGHT; i++) 
-    for (u16 j = 0; j < SCR_WIDTH; j++)
-      draw(*addr++, i, j);
+  draw_border();
+  if (term.vram) {
+    // don't perform the indirection outside the loop. vid ram can be mapped
+    // toward the high end of the range, in which case we need to be careful
+    // that it wraps around to the start.
+    u16 addr = term.vram;
+    for (u16 i = 0; i < SCR_HEIGHT; i++) 
+      for (u16 j = 0; j < SCR_WIDTH; j++)
+        draw(dcpu->ram[addr++], i, j);
+  }
   wrefresh(term.vidwin);
 }
 

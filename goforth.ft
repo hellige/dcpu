@@ -266,7 +266,6 @@ variable quitword
 \ words to handle terminal attributes. see below for examples...
 \ i'm not super happy with this design...
 0 constant term
-hex 8280 constant border decimal
 
 : r  ( term -- term )  4 or ;
 : g  ( term -- term )  2 or ;
@@ -281,10 +280,6 @@ term r g b hi 2* 4 lshift invert constant fgmask
 : fg ( term -- ) 2* 4 lshift  conattr @  fgmask and or conattr ! ;
 : blink  ( -- )  conattr @ 1 or conattr ! ; \ this one is a toggle
 : defcon ( -- )  term bg  term r g b fg ;
-
-\ Convenience words for messing with the border.
-: border! ( color -- ) border ! ;
-: border@ ( -- color ) border @ ;
 
 
 \ finally, the traditional repl that checks after each line for stack underflow.

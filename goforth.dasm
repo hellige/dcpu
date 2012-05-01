@@ -182,6 +182,10 @@ define(defconst, `
             set [curline], 0        ; reset current line start position
             ; TODO locate keyboard/display
             set [kbd], 0            ; TODO locate
+            set [display], 1        ; TODO locate
+            set a, 0                ; a == 0: MEM_MAP_SCREEN
+            set b, vidram_          ; b contains mem map addr
+            hwi [display]
             set y, var_bootword     ; boot up
             next
 
@@ -194,6 +198,7 @@ define(defconst, `
 curvid:     dw 0                    ; position in video ram
 curline:    dw 0                    ; start of current line (for backspace)
 kbd:        dw 0                    ; hardware id of keyboard
+display:    dw 0                    ; hardware id of display
 
 
 ; interpreter for variables (and newly created words, per ans)
@@ -719,6 +724,13 @@ readkey.1:  hwi [kbd]               ; do the interrupt
             set j, [z]              ; prep the call
             add z, 1                ; and pop it
             jsr emit_               ; write the char
+            next
+
+            defcode(border!, 0, setborder)
+            set a, 3                ; a == 3: SET_BORDER_COLOR
+            set b, [z]              ; b contains border palette idx
+            hwi [display]
+            add z, 1                ; pop it
             next
 
             ; writes the word in j to vidram. handles scrolling, newline,

@@ -167,7 +167,8 @@ int main(int argc, char **argv) {
 
   if (dump_screen) {
     puts(" * final screen buffer contents:");
-    u16 *addr = &dcpu.ram[VRAM_ADDR];
+    // TODO integrate with term to get final vram address.
+    u16 *addr = 0; // TODO &dcpu.ram[VRAM_ADDR];
     for (u16 i = 0; i < SCR_HEIGHT; i++) {
       printf("\n   ");
       for (u16 j = 0; j < SCR_WIDTH; j++, addr++) {
