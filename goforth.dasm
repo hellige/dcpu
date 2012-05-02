@@ -175,19 +175,37 @@ define(defconst, `
 ')
 
 ; boot...
+            jsr inithw              ; locate/initialize hardware
+            set a, 0                ; a == 0: MEM_MAP_SCREEN
+            set b, vidram_          ; b contains mem map addr
+            hwi [display]
             ; return stack grows down from 0xffff
             ; but sp already starts at 0, so we might as well assume it
             set z, s0_              ; data stack grows down from here
             set [curvid], 0         ; reset video ram position
             set [curline], 0        ; reset current line start position
-            ; TODO locate keyboard/display
-            set [kbd], 0            ; TODO locate
-            set [display], 1        ; TODO locate
-            set a, 0                ; a == 0: MEM_MAP_SCREEN
-            set b, vidram_          ; b contains mem map addr
-            hwi [display]
             set y, var_bootword     ; boot up
             next
+
+inithw:     set [kbd], 0xffff       ; init to unlikely value...
+            set [display], 0xffff
+            hwn z
+inithw.1:   sub z, 1
+            ifu z, 0                ; finished iterating?
+            set pc, inithw.2
+            hwq z
+            ife a, 0x7406
+            ife b, 0x30cf
+            set [kbd], z
+            ife a, 0xf615
+            ife b, 0x7349
+            set [display], z
+            set pc, inithw.1
+inithw.2:   ifn [kbd], 0xffff       ; if everything found, return
+            ifn [display], 0xffff
+            set pc, pop
+            dbg 0                   ; otherwise, debug
+            set pc, pop             ; then return
 
             ; we need a few variables for positions in the various memory
             ; mapped buffers, hardware locations, etc., but we need to be very
@@ -391,29 +409,20 @@ dhend_:     ; just in case the jsr is 2 words...
 
             ; signed division is symmetric (truncating). ans allows
             ; either, it's a holy war and i have no horse in the race.
-            ; but i suspect that if notch implements divi, it will be
-            ; truncating, so this will then be a single instruction.
+            ; but like most forths, i'd rather expose the native machine
+            ; division than roll something else.
             defcode(/, 0, div)
-            set a, [z]              ; a is divisor
+            set a, [z]
             add z, 1
-            set b, [z]              ; b is dividend
-            set c, b
-            xor c, a
-            shr c, 15               ; c is 1 if signs differ
-            ifg 0x8000, a           ; a is positive
-            set pc, div.1
-            xor a, 0xffff           ; else make it positive
-            add a, 1
-div.1:      ifg 0x8000, b           ; likewise, b is positive
-            set pc, div.2
-            xor b, 0xffff           ; else make it positive
-            add b, 1
-div.2:      div b, a                ; unsigned quotient is in b
-            ife c, 0                ; were the signs the same?
-            set pc, div.3           ; if so, done
-            xor b, 0xffff           ; else negate the quotient
-            add b, 1
-div.3:      set [z], b              ; and return it
+            dvi [z], a
+            next
+
+            ; 'mod' is really remainder, since it's (rightly) consistent
+            ; with div for negative numbers.
+            defcode(mod, 0, mod)
+            set a, [z]
+            add z, 1
+            mdi [z], a
             next
 
             defcode(lshift, 0, lshift)
@@ -430,6 +439,10 @@ div.3:      set [z], b              ; and return it
 
             defcode(2*, 0, twomul)
             shl [z], 1
+            next
+
+            defcode(2/, 0, twodiv)
+            asr [z], 1
             next
 
             defcode(and, 0, bitand)

@@ -152,13 +152,15 @@ class Lit(object):
         self.inline = inline
     def value(self):
         if self.deref: return 0x1e
-        # TODO self.val == 0xffff should be -1
         if self.inline and -1 <= self.val < 31: return 0x21 + self.val
+        # it's simpler just to special-case 0xffff rather than to really
+        # deal with un/signed 16-bit values in python...
+        if self.inline and self.val == 0xffff: return 0x20
         return 0x1f
     def emit(self, prog):
-        # TODO self.val == 0xffff should be -1
-        if not (self.inline and -1 <= self.val < 31):
-            prog.append(self.val)
+        if self.inline and -1 <= self.val < 31: return
+        if self.inline and self.val == 0xffff: return # see above
+        prog.append(self.val)
 
 class Offset(object):
     # offset is either the actual int offset value, or a string label

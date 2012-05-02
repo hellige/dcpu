@@ -225,11 +225,16 @@ static inline void set(u16 *dest, u16 val) {
 }
 
 
-// decode (but do not execute) next instruction...
+// decode (but do not execute) next instruction(s)...
 static inline void skip(dcpu *dcpu) {
-  u16 instr = next(dcpu, true);
-  decode_arg(dcpu, arg_a(instr), NULL, false, true);
-  decode_arg(dcpu, arg_b(instr), NULL, false, false);
+  // this is slightly imperfect. we risk an infinite loop if memory 
+  // is nothing but if* instructions. but that's a bit perverse.
+  u16 instr;
+  do {
+    instr = next(dcpu, true);
+    decode_arg(dcpu, arg_a(instr), NULL, false, true);
+    decode_arg(dcpu, arg_b(instr), NULL, false, false);
+  } while (get_opcode(instr) >= OP_IFB && get_opcode(instr) <= OP_IFU);
 }
 
 
@@ -244,6 +249,11 @@ static action_t execute(dcpu *dcpu, u16 instr) {
 
   u16 a = decode_arg(dcpu, arg_a(instr), NULL, true, true);
   u16 b = decode_arg(dcpu, arg_b(instr), &dest, true, false);
+
+  // TODO all these instructions set EX *after* setting destination. this
+  // *may* be wrong: http://www.reddit.com/r/dcpu16/comments/t0yps/psa_fix_your_emulators_set_ex_7_add_ex_ex_should/
+  // TODO values of EX should be tested for virtually all instructions. i've
+  // mostly coded to spec without much testing, and there are bound to be bugs.
 
   switch (opcode) {
     case OP_SET:
@@ -337,7 +347,8 @@ static action_t execute(dcpu *dcpu, u16 instr) {
       dcpu->ex = ((b << 16) >> a) & 0xffff; // per spec
       break;
 
-    case OP_ASR: // TODO!!
+    case OP_ASR:
+      // TODO this should be enforced manually, but gcc/x86 does what we want...
       set(dest, S(b) >> a);
       dcpu->ex = ((S(b) << 16) >> a) & 0xffff; // per spec
       break;
@@ -347,7 +358,6 @@ static action_t execute(dcpu *dcpu, u16 instr) {
       dcpu->ex = ((b << a) >> 16) & 0xffff; // per spec
       break;
 
-    // TODO: these should skip subsequent IF* on failure...
     case OP_IFB:
       if (!(b & a)) skip(dcpu);
       await_tick(dcpu);

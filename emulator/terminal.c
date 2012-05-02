@@ -168,8 +168,9 @@ void dcpu_initterm(dcpu *dcpu) {
       COLOR_PAIRS, can_change_color() ? "*can*" : "*cannot*");
 }
 
-void dcpu_killterm(void) {
+u16 dcpu_killterm(void) {
   endwin();
+  return term.vram;
 }
 
 void checkkey() {

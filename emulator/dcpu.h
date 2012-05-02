@@ -144,7 +144,7 @@ extern void dcpu_redraw(dcpu *dcpu);
 extern void dcpu_termtick(dcpu *dcpu, tstamp_t now);
 extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
-extern void dcpu_killterm(void);
+extern u16 dcpu_killterm(void);
 extern volatile bool dcpu_break;
 extern volatile bool dcpu_die;
 
