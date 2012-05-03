@@ -231,6 +231,12 @@ u16 dcpu_killterm(void) {
   return term.vram;
 }
 
+void dcpu_awaitkey(void) {
+  dcpu_msg("press a key...");
+  timeout(-1);
+  getch();
+}
+
 int dcpu_getstr(char *buf, int n) {
   return wgetnstr(term.dbgwin, buf, n) == OK;
 }

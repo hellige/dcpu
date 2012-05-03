@@ -152,6 +152,7 @@ int main(int argc, char **argv) {
   dcpu_initops();
   if (!dcpu_loadcore(&dcpu, image, bigend)) {
     // ...even though that makes teardown a little uglier
+    dcpu_awaitkey();
     dcpu_killterm();
     return -1;
   }
