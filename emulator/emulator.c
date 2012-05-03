@@ -79,9 +79,8 @@ void dcpu_init(dcpu *dcpu, uint32_t khz) {
   dcpu->ia = 0;
   for (int i = 0; i < NREGS; i++) dcpu->reg[i] = 0;
   for (int i = 0; i < RAM_WORDS; i++) dcpu->ram[i] = 0;
-  dcpu->intqhead = dcpu->intq;
-  dcpu->intqtail = dcpu->intq;
-
+  dcpu->intqwrite = 0;
+  dcpu->intqread = 0;
   dcpu->nhw = 0;
 }
 
@@ -130,6 +129,36 @@ void dcpu_coredump(dcpu *dcpu, uint32_t limit) {
   }
 
   fclose(img);
+}
+
+
+static action_t enqueue_int(dcpu *dcpu, u16 interrupt) {
+  u16 nextwrite = (dcpu->intqwrite+1) % INTQ_SIZE;
+  if (nextwrite != dcpu->intqread) {
+    dcpu->intq[dcpu->intqwrite] = interrupt;
+    dcpu->intqwrite = nextwrite;
+    return A_CONTINUE;
+  } else {
+    dcpu_msg("interrupt queue overflow! discarding: 0x%04x\n", interrupt);
+    return A_BREAK;
+  }
+}
+
+static void trigger_int(dcpu *dcpu) {
+  // check if interrupts are unblocked and queue is non-empty
+  if (!dcpu->qints && dcpu->intqread != dcpu->intqwrite) {
+    if (dcpu->ia != 0) {
+      // handler is configured, deliver the interrupt.
+      dcpu->qints = true;
+      dcpu->ram[--dcpu->sp] = dcpu->pc;
+      dcpu->ram[--dcpu->sp] = dcpu->reg[REG_A];
+      dcpu->pc = dcpu->ia;
+      dcpu->reg[REG_A] = dcpu->intq[dcpu->intqread];
+    }
+    // and either way, discard the queued interrupt...
+    dcpu->intqread++;
+    dcpu->intqread  %= INTQ_SIZE;
+  }
 }
 
 
@@ -460,20 +489,10 @@ static action_t exec_special(dcpu *dcpu, u16 instr) {
       return A_BREAK;
 
     case OP_SP_INT:
-      if (dcpu->ia != 0) {
-        // TODO queueing?
-        // this is really the int triggering code, i guess, which should 
-        // happen between instructions if the queue is non-empty.
-        dcpu->qints = true;
-        dcpu->ram[--dcpu->sp] = dcpu->pc;
-        dcpu->ram[--dcpu->sp] = dcpu->reg[REG_A];
-        dcpu->pc = dcpu->ia;
-        dcpu->reg[REG_A] = a;
-      }
       await_tick(dcpu);
       await_tick(dcpu);
       await_tick(dcpu);
-      break;
+      return enqueue_int(dcpu, a);
 
     case OP_SP_IAG:
       set(dest, dcpu->ia);
@@ -540,6 +559,7 @@ action_t dcpu_step(dcpu *dcpu) {
   u16 oldpc = dcpu->pc;
   u16 instr = next(dcpu, true);
   int result = execute(dcpu, instr);
+  trigger_int(dcpu);
   if (dcpu->detect_loops && dcpu->pc == oldpc) {
     dcpu_msg("loop detected.\n");
     return A_BREAK;

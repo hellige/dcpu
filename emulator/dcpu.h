@@ -55,7 +55,8 @@ typedef uint64_t tstamp_t;
 #define ARGB_MASK 0x1f
 #define ARGA_MASK 0x3f
 #define ARGB_SIZE 5
-#define INTQ_SIZE 256
+// one extra slot in the interrupt queue for overflow detection
+#define INTQ_SIZE 257
 #define HW_SIZE   8
 
 #define DISPLAY_HZ    30
@@ -85,9 +86,9 @@ typedef struct dcpu_t {
 
   // interrupt queue
   bool qints;
-  u16 intq[INTQ_SIZE+1]; // one extra slot for overflow detection
-  u16 *intqhead;
-  u16 *intqtail;
+  u16 intq[INTQ_SIZE];
+  u16 intqwrite;
+  u16 intqread;
 
   // hardware devices.
   u16 nhw;
