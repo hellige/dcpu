@@ -128,6 +128,7 @@ bool dcpu_loadcore(dcpu *dcpu, const char *image, bool bigend);
 extern void dcpu_coredump(dcpu *dcpu, uint32_t limit);
 extern void dcpu_run(dcpu *dcpu, bool debugboot);
 extern action_t dcpu_step(dcpu *dcpu);
+extern void dcpu_interrupt(dcpu *dcpu, u16 interrupt);
 
 // debugger.c
 extern bool dcpu_debug(dcpu *dcpu);

@@ -132,15 +132,16 @@ void dcpu_coredump(dcpu *dcpu, uint32_t limit) {
 }
 
 
-static action_t enqueue_int(dcpu *dcpu, u16 interrupt) {
+void dcpu_interrupt(dcpu *dcpu, u16 interrupt) {
   u16 nextwrite = (dcpu->intqwrite+1) % INTQ_SIZE;
   if (nextwrite != dcpu->intqread) {
     dcpu->intq[dcpu->intqwrite] = interrupt;
     dcpu->intqwrite = nextwrite;
-    return A_CONTINUE;
   } else {
     dcpu_msg("interrupt queue overflow! discarding: 0x%04x\n", interrupt);
-    return A_BREAK;
+    // break via variable, since interrupts can be raised by hardware at
+    // "arbitrary" times
+    dcpu_break = true;
   }
 }
 
@@ -492,7 +493,8 @@ static action_t exec_special(dcpu *dcpu, u16 instr) {
       await_tick(dcpu);
       await_tick(dcpu);
       await_tick(dcpu);
-      return enqueue_int(dcpu, a);
+      dcpu_interrupt(dcpu, a);
+      break;
 
     case OP_SP_IAG:
       set(dest, dcpu->ia);

@@ -32,6 +32,11 @@
 
 #include "dcpu.h"
 
+// this number is relatively arbitrary, but it really doesn't matter
+// what it is. the terminal driver will continue to buffer keys anyway,
+// we just won't trigger interrupts for them until the keybuf is
+// drained a bit.
+#define KEYBUF_SIZE 256
 
 struct term_t {
   WINDOW *border;
@@ -44,6 +49,10 @@ struct term_t {
   u16 vram;
   u16 curborder;
   u16 nextborder;
+  int keybuf[KEYBUF_SIZE];
+  int keybufwrite;
+  int keybufread;
+  u16 kbdints;
 };
 
 static struct term_t term;
@@ -55,15 +64,12 @@ static inline u16 color(int fg, int bg) {
 }
 
 static void readkey(dcpu *dcpu) {
-  int c = getch();
+  u16 c = 0;
+  if (term.keybufread != term.keybufwrite) {
+    c = term.keybuf[term.keybufread++];
+    term.keybufread %= KEYBUF_SIZE;
+  }
   switch (c) {
-    case 0x04:
-      // if ctrl-d, just ungetch it to the next tick. i guess we could
-      // handle it here, but it seems more orthogonal to handle it in
-      // only place
-      ungetch(c);
-      // fall through...
-    case ERR: c = 0; break; // no key. no problem.
     // TODO redo key mappings per spec...
     // remap bs and del to bs, just in case
     case KEY_BACKSPACE: c = 0x08; break;
@@ -86,12 +92,7 @@ static u16 kbd_hwi(dcpu *dcpu) {
       dcpu->reg[REG_C] = 0;
       break;
     case 3:
-      // TODO keyboard interrupts
-      if (dcpu->reg[REG_B])
-        dcpu_msg("enabling keyboard interrupts with msg: 0x%04x\n",
-            dcpu->reg[REG_B]);
-      else
-        dcpu_msg("disabling keyboard interrupts");
+      term.kbdints = dcpu->reg[REG_B];
       break;
     default:
       dcpu_msg("warning: unknown keyboard HWI: 0x%04x\n", dcpu->reg[REG_A]);
@@ -126,6 +127,9 @@ void dcpu_initterm(dcpu *dcpu) {
   term.curborder = 0;
   term.nextborder = 0;
   term.vram = 0;
+  term.keybufwrite = 0;
+  term.keybufread = 0;
+  term.kbdints = 0;
 
   // set up hardware descriptors
   device *kbd = dcpu_addhw(dcpu);
@@ -173,19 +177,26 @@ u16 dcpu_killterm(void) {
   return term.vram;
 }
 
-void checkkey() {
-  int c = getch();
-  // always check for ctrl-d to allow immediate exit
-  switch (c) {
-    case 0x04:
-      // ctrl-d. exit.
-      dcpu_die = true;
-      break;
-    case -1:
-      break;
-    default:
-      // TODO keyboard interrupt. also need to check if already delivered.
-      ungetch(c);
+static void checkkey(dcpu *dcpu) {
+  int nextwrite = (term.keybufwrite+1) % KEYBUF_SIZE;
+  if (nextwrite != term.keybufread) {
+    // buf has an empty slot, try to use it...
+    int c = getch();
+    // always check for ctrl-d to allow immediate exit
+    switch (c) {
+      case 0x04:
+        // ctrl-d. exit.
+        dcpu_die = true;
+        return;
+      case ERR:
+        // no key, no problem.
+        return;
+    }
+
+    // enqueue key, raise interrupt if possible
+    term.keybuf[term.keybufwrite] = c;
+    if (term.kbdints) dcpu_interrupt(dcpu, term.kbdints);
+    term.keybufwrite = nextwrite;
   }
 }
 
