@@ -19,7 +19,8 @@ ifeq ($(system),Darwin)
 endif
 
 MAIN_DIR = emulator
-MAIN_S = dcpu.c debugger.c disassembler.c emulator.c opcodes.c terminal.c
+MAIN_S = clock.c dcpu.c debugger.c disassembler.c emulator.c opcodes.c \
+    terminal.c
 MAIN_O = $(patsubst %.c,out/%.o,$(MAIN_S))
 
 ALL_O = $(MAIN_O)

@@ -63,6 +63,7 @@ typedef uint64_t tstamp_t;
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
 #define KBD_BAUD      4000
+#define CLOCKDEV_HZ   60
 
 struct dcpu_t;
 
@@ -71,6 +72,7 @@ typedef struct device_t {
   uint32_t mfr;
   u16 version;
   u16 (*hwi)(struct dcpu_t *);
+  void (*tick)(struct dcpu_t *, tstamp_t);
 } device;
 
 typedef struct dcpu_t {
@@ -118,6 +120,9 @@ static inline device *dcpu_addhw(dcpu *dcpu) {
   return &dcpu->hw[dcpu->nhw++];
 }
 
+// clock.c
+extern void dcpu_initclock(dcpu *dcpu);
+
 // disassembler.c
 extern u16 *dcpu_disassemble(u16 *pc, char *out);
 
@@ -143,7 +148,6 @@ extern void dcpu_msg(char *fmt, ...)
 extern int dcpu_getch(void);
 extern int dcpu_getstr(char *buf, int n);
 extern void dcpu_redraw(dcpu *dcpu);
-extern void dcpu_termtick(dcpu *dcpu, tstamp_t now);
 extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
 extern u16 dcpu_killterm(void);

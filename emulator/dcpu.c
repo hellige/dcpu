@@ -148,6 +148,7 @@ int main(int argc, char **argv) {
   block_sigint();
   dcpu_init(&dcpu, khz);
   dcpu_initterm(&dcpu);
+  dcpu_initclock(&dcpu);
   dcpu_initops();
   if (!dcpu_loadcore(&dcpu, image, bigend)) {
     // ...even though that makes teardown a little uglier

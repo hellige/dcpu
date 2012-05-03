@@ -60,7 +60,9 @@ tstamp_t dcpu_now() {
 
 static inline void await_tick(dcpu *dcpu) {
   tstamp_t now = dcpu_now();
-  dcpu_termtick(dcpu, now);
+  // tick hardware devices
+  for (int i = 0; i < dcpu->nhw; i++)
+    dcpu->hw[i].tick(dcpu, now);
   if (now < dcpu->nexttick) {
     struct timespec ts = { 0, dcpu->nexttick - now };
     // don't care about failures. if we get a signal, we're gonna bail anyway.

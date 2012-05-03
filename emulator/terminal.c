@@ -63,6 +63,29 @@ static inline u16 color(int fg, int bg) {
     : (fg % 8) * 8 + (bg % 8) + 1;
 }
 
+static void checkkey(dcpu *dcpu) {
+  int nextwrite = (term.keybufwrite+1) % KEYBUF_SIZE;
+  if (nextwrite != term.keybufread) {
+    // buf has an empty slot, try to use it...
+    int c = getch();
+    // always check for ctrl-d to allow immediate exit
+    switch (c) {
+      case 0x04:
+        // ctrl-d. exit.
+        dcpu_die = true;
+        return;
+      case ERR:
+        // no key, no problem.
+        return;
+    }
+
+    // enqueue key, raise interrupt if possible
+    term.keybuf[term.keybufwrite] = c;
+    if (term.kbdints) dcpu_interrupt(dcpu, term.kbdints);
+    term.keybufwrite = nextwrite;
+  }
+}
+
 static void readkey(dcpu *dcpu) {
   int c = 0;
   if (term.keybufread != term.keybufwrite) {
@@ -113,6 +136,13 @@ static u16 kbd_hwi(dcpu *dcpu) {
   return 0; // no extra cycles
 }
 
+static void kbd_tick(dcpu *dcpu, tstamp_t now) {
+  if (now > term.nextkey) {
+    checkkey(dcpu);
+    term.nextkey += term.keyns;
+  }
+}
+
 static u16 lem_hwi(dcpu *dcpu) {
   switch (dcpu->reg[REG_A]) {
     case 0: // MEM_MAP_SCREEN
@@ -130,6 +160,13 @@ static u16 lem_hwi(dcpu *dcpu) {
       break;
   }
   return 0; // no extra cycles
+}
+
+static void lem_tick(dcpu *dcpu, tstamp_t now) {
+  if (now > term.nexttick) {
+    dcpu_redraw(dcpu);
+    term.nexttick += term.tickns;
+  }
 }
 
 void dcpu_initterm(dcpu *dcpu) {
@@ -150,11 +187,13 @@ void dcpu_initterm(dcpu *dcpu) {
   kbd->version = 1;
   kbd->mfr = 0x01220423;
   kbd->hwi = &kbd_hwi;
+  kbd->tick = &kbd_tick;
   device *lem = dcpu_addhw(dcpu);
   lem->id = 0x7349f615;
   lem->version = 0x1802;
   lem->mfr = 0x1c6c8b36;
   lem->hwi = &lem_hwi;
+  lem->tick = &lem_tick;
 
   // should be done prior to initscr, and it doesn't matter if we do it twice
   initscr();
@@ -190,29 +229,6 @@ void dcpu_initterm(dcpu *dcpu) {
 u16 dcpu_killterm(void) {
   endwin();
   return term.vram;
-}
-
-static void checkkey(dcpu *dcpu) {
-  int nextwrite = (term.keybufwrite+1) % KEYBUF_SIZE;
-  if (nextwrite != term.keybufread) {
-    // buf has an empty slot, try to use it...
-    int c = getch();
-    // always check for ctrl-d to allow immediate exit
-    switch (c) {
-      case 0x04:
-        // ctrl-d. exit.
-        dcpu_die = true;
-        return;
-      case ERR:
-        // no key, no problem.
-        return;
-    }
-
-    // enqueue key, raise interrupt if possible
-    term.keybuf[term.keybufwrite] = c;
-    if (term.kbdints) dcpu_interrupt(dcpu, term.kbdints);
-    term.keybufwrite = nextwrite;
-  }
 }
 
 int dcpu_getstr(char *buf, int n) {
@@ -278,16 +294,4 @@ void dcpu_redraw(dcpu *dcpu) {
         draw(dcpu->ram[addr++], i, j);
   }
   wrefresh(term.vidwin);
-}
-
-void dcpu_termtick(dcpu *dcpu, tstamp_t now) {
-  if (now > term.nexttick) {
-    dcpu_redraw(dcpu);
-    term.nexttick += term.tickns;
-  }
-
-  if (now > term.nextkey) {
-    checkkey(dcpu);
-    term.nextkey += term.keyns;
-  }
 }
