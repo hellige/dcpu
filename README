@@ -1,7 +1,10 @@
 DCPU-16 Playground
 
 This is an emulator, assembler, and an implementation of the Forth programming
-language for notch's DCPU-16. See http://0x10c.com/doc/dcpu-16.txt for details.
+language for notch's DCPU-16. See http://0x10c.com/doc/dcpu-16.txt for details,
+although that spec is now unofficially superseded. Newer specs are collected
+here:
+  https://github.com/0x10cStandardsCommittee/0x10c-Specifications/tree/master/MOJANG
 
 There are also a couple of useful scripts for swapping endianness of binary
 images and dumping to hex in a format supported by some other emulators.
@@ -25,15 +28,17 @@ The emulator is written in C with curses for video display. It's well tested
 and has a number of nice options. It builds on both Mac OS and Linux with gcc.
 
 I think it's about as close to the current consensus specs as is achievable
-with ncurses. Obviously bitmapped graphics aren't supported, so the terminal
-driver doesn't do anything special with the 'character table' (0x8180-0x827f),
-it just ignores the contents.
+with ncurses. Obviously bitmapped graphics aren't supported, so the LEM-1802
+support doesn't support MEM_MAP_FONT or MEM_MAP_PALETTE. (They generate an
+emulator warning, but are otherwise silently ignored.) It may be possible to
+provided limited palette support, at least on fancier terminals, but it's
+not a high priority unless someone asks for it.
 
-The emulator supports the 'standard' 16-word keyboard ring buffer at 0x9000.
+The emulator supports the 'standard' LEM-1802 display, keyboard, and clock.
 I'm not sure what other emulators are doing, but this one will refuse to
-overflow the buffer, so it's important that your program reset each word
-to 0 after it's been read. If this is a problem for your program, it would
-be quite easy to make this behavior optional.
+overflow the interrupt queue: new interrupts will be dropped and the emulator
+will break to the debugger on attempted overflow. This seems friendlier than
+'catching fire'.
 
 For best colors, run in a terminal with good color support. You may have to
 fiddle around to get curses to realize your colors are good. For example, 
@@ -59,10 +64,12 @@ contains a built-in decompiler/disassembler and other amenities. (In fact, you
 might take a look at the file disasm.ft for an example of some non-trivial code
 written in goforth.)
 
-The bootstrapped goforth image should run on any DCPU-16 emulator that
-supports I/O. (It'll run on others, too, but won't do much...)
+The bootstrapped goforth image should run on any DCPU-16 1.7 emulator with
+a compatible display/keyboard. (It'll run on others, too, but won't do much,
+although custom images would be quite easy to create...)
 
-goforth has been tested on several other emulators:
+The older (DCPU-16 1.1) version of goforth was tested on several other
+emulators:
   * Notch's 'official' prototype, from http://dcpu.com/highnerd
     goforth runs correctly in this emulator, and you can play with it
     online here: http://matt.immute.net/files/goforth
@@ -83,7 +90,10 @@ goforth has been tested on several other emulators:
     Again, everything looks good, but keyboard input is (again, but
     differently) broken, so it's hard to do much. And again, I'm going to wait
     for a spec.
-I am most interested in hearing whether it works on other emulators.
+I am most interested in hearing whether the new 1.7 version works on other
+emulators, but I've been busy updating my own and haven't checked the status
+of other popular emulators yet. As far as I know, there is not yet any official
+1.7-compatible emulator from Notch.
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
