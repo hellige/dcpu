@@ -64,16 +64,27 @@ static inline u16 color(int fg, int bg) {
 }
 
 static void readkey(dcpu *dcpu) {
-  u16 c = 0;
+  int c = 0;
   if (term.keybufread != term.keybufwrite) {
     c = term.keybuf[term.keybufread++];
     term.keybufread %= KEYBUF_SIZE;
   }
   switch (c) {
-    // TODO redo key mappings per spec...
-    // remap bs and del to bs, just in case
-    case KEY_BACKSPACE: c = 0x08; break;
-    case 0x7f: c = 0x08; break;
+    // these key codes are non-ascii, obviously, per the keyboard spec.
+    // also, certain keys aren't easily supported: insert, for instance, 
+    // or detection of shift/control by themselves. so this support is only 
+    // partial.
+    // we remap bs and del to bs, just in case. termio is a pain.
+    case KEY_BACKSPACE: c = 0x10; break;
+    case 0x7f: c = 0x10; break;
+    // likewise for KEY_ENTER and \n, which should be the same, sort of, but
+    // aren't.
+    case KEY_ENTER: c = 0x11; break;
+    case '\n': c = 0x11; break;
+    case KEY_UP: c = 0x80; break;
+    case KEY_DOWN: c = 0x81; break;
+    case KEY_LEFT: c = 0x82; break;
+    case KEY_RIGHT: c = 0x83; break;
   }
   dcpu->reg[REG_C] = c; // always set c
 }
@@ -151,6 +162,8 @@ void dcpu_initterm(dcpu *dcpu) {
   term.border = subwin(stdscr, 14, 36, 0, 0);
   term.vidwin = subwin(stdscr, 12, 32, 1, 2);
   term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
+  keypad(term.vidwin, true);
+  keypad(term.border, true);
   scrollok(term.dbgwin, true);
   keypad(term.dbgwin, true);
 

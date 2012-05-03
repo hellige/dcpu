@@ -296,7 +296,7 @@ dhend_:     ; just in case the jsr is 2 words...
             defvar(r0, r0, r0_)
             defvar(s0, s0, s0_)
             defvar(base, base, 10)
-            defvar(conattr, conattr, 0)
+            defvar(conattr, conattr, 32)
 ; we also reflect the addresses of the xt values for 'see', custom compiling
 ; words, etc...
             defconst(docol:, docolf, docol)
@@ -748,7 +748,7 @@ readkey.1:  hwi [kbd]               ; do the interrupt
 
             ; writes the word in j to vidram. handles scrolling, newline,
             ; and backspace. uses register i.
-emit_:      ifn j, 0x0a             ; check nl
+emit_:      ifn j, 0x11             ; check nl
             set pc, emit_.1
             set i, [curvid]         ; erase cursor
             add i, vidram_
@@ -757,7 +757,7 @@ emit_:      ifn j, 0x0a             ; check nl
             and [curvid], -32       ; width is a power of 2
             set [curline], [curvid] ; set start of current line (for backspace)
             set pc, emit_.3
-emit_.1:    ifn j, 0x08             ; check bs
+emit_.1:    ifn j, 0x10             ; check bs
             set pc, emit_.2
             ife [curline], [curvid] ; at line start. bail.
             set pc, emit_.3
@@ -804,7 +804,7 @@ scroll_.2:  set [i], 0
             set pc, pop
 
             defcode(cr, 0, cr)
-            set j, 0x0a
+            set j, 0x11
             jsr emit_
             next
 
@@ -817,13 +817,13 @@ accept.1:   ife a, [z]              ; bail if at limit
 accept.3:   jsr readkey             ; fetch keypress
             set j, c                ; the emits below expect key in j...
             set [a], c
-            ifn [a], 0x08           ; skip if not backspace/delete
+            ifn [a], 0x10           ; skip if not backspace/delete
             set pc, accept.4
             jsr emit_               ; erase from the terminal
             ifg a, [1+z]            ; backspace input buffer, if possible
             sub a, 1
             set pc, accept.3        ; ...and try again
-accept.4:   ife [a], 0x0a           ; bail if newline
+accept.4:   ife [a], 0x11           ; bail if newline
             set pc, accept.2
             jsr emit_               ; echo it to the terminal, key is still in j
             add a, 1
@@ -874,9 +874,7 @@ isspace_:   set j, 0
             set j, -1
             ife [a], 0x09           ; tab
             set j, -1
-            ife [a], 0x0d           ; cr
-            set j, -1
-            ife [a], 0x0a           ; lf
+            ife [a], 0x11           ; newline
             set j, -1
             set pc, pop
 

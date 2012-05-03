@@ -32,7 +32,9 @@ with ncurses. Obviously bitmapped graphics aren't supported, so the LEM-1802
 support doesn't support MEM_MAP_FONT or MEM_MAP_PALETTE. (They generate an
 emulator warning, but are otherwise silently ignored.) It may be possible to
 provided limited palette support, at least on fancier terminals, but it's
-not a high priority unless someone asks for it.
+not a high priority unless someone asks for it. It's also difficult or 
+impossible to fully support the documented key scan codes in curses, since
+for example it's impossible to detect presses of shift/control in isolation.
 
 The emulator supports the 'standard' LEM-1802 display, keyboard, and clock.
 I'm not sure what other emulators are doing, but this one will refuse to
