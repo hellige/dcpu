@@ -92,7 +92,9 @@ static void readkey(dcpu *dcpu) {
 static u16 kbd_hwi(dcpu *dcpu) {
   switch (dcpu->reg[REG_A]) {
     case 0:
-      // clear kbd buf. unsupported (we snarf term buf'ing), so a no-op here.
+      // clear kbd buf. of course the terminal could still have stuff buffered.
+      term.keybufwrite = 0;
+      term.keybufread = 0;
       break;
     case 1:
       readkey(dcpu);
