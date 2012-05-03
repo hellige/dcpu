@@ -1,0 +1,66 @@
+; this is a test of terminal colors, as well as a rudimentary test of
+; the display (MEM_MAP_SCREEN and SET_BORDER_COLOR) as well as the 
+; clock device: we change the border color on every clock tick, which we
+; configure to be 2Hz.
+
+            hwn z               ; scan for hardware
+inithw.1:   sub z, 1            ; next device
+            ifu z, 0            ; done?
+            set pc, inithw.2
+            hwq z               ; fetch device description
+            ife a, 0xf615       ; is it the screen?
+            ife b, 0x7349
+            set [display], z
+            ife a, 0xb402       ; is it the clock?
+            ife b, 0x12d0
+            set [clock], z
+            set pc, inithw.1    ; again
+inithw.2:   set a, 0            ; map screen to vidram
+            set b, [vidram]
+            hwi [display]
+            ias isr             ; set up the clock interrupt
+            set a, 2
+            set b, 1
+            hwi [clock]
+            set a, 0            ; set clock rate to 2hz
+            set b, 30
+            hwi [clock]
+
+            set a, [vidram]     ; set up to draw the screen
+            set b, 0
+            set c, 0
+            set i, 0
+loop:       ife i, 384          ; wrote the whole screen?
+            set pc, done
+            set [a], b          ; set the fg
+            shl [a], 0x4
+            bor [a], c          ; set the bg
+            shl [a], 0x8
+            bor [a], 0x41       ; write 'A'
+            add a, 1
+            set [a], [-1+a]     ; following char is the same...
+            bor [a], 0x80       ; ...but blinking
+            add a, 1
+            add i, 2            ; increment index
+            set j, i
+            mod j, 32           ; at end of row?
+            ife j, 0
+            add c, 1            ; if so, advance bg
+            add b, 1            ; advance fg each time
+            set pc, loop        ; again
+
+done:       sub pc, 1           ; halt
+
+isr:        set push, b         ; save
+            add [border], 1     ; advance border color
+            set a, 3            ; and set the border
+            set b, [border]
+            hwi [display]
+            set b, pop          ; restore
+            rfi 0
+
+; variables
+display:    dw 0xffff
+clock:      dw 0xffff
+vidram:     dw 0x8000
+border:     dw 0

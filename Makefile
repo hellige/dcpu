@@ -24,7 +24,7 @@ MAIN_S = clock.c dcpu.c debugger.c disassembler.c emulator.c opcodes.c \
 MAIN_O = $(patsubst %.c,out/%.o,$(MAIN_S))
 
 ALL_O = $(MAIN_O)
-ALL_T = dcpu goforth.img
+ALL_T = dcpu goforth.img colortest.img
 
 
 default: all
@@ -39,6 +39,9 @@ $(MAIN_O):out/%.o: $(MAIN_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) -c -o $@ $(CFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" \
 	    -MT"$(@:%.o=%.d)" $<
+
+colortest.img: colortest.dasm
+	./masm $< $@
 
 out/boot.img: goforth.dasm masm
 	m4 $< > out/goforth.s
