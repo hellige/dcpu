@@ -32,12 +32,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 
 #include "dcpu.h"
 #include "opcodes.h"
 
 volatile bool dcpu_break = false;
 volatile bool dcpu_die = false;
+static struct termios old_termios;
 
 static void usage(char **argv) {
   fprintf(stderr, "usage: %s [options] <image>\n", argv[0]);
@@ -61,20 +63,37 @@ static void usage(char **argv) {
   fprintf(stderr, "dump files are *always* big-endian.\n");
 } 
 
-static void handler(int signum) {
+static void int_handler(int signum) {
   (void)signum;
   dcpu_break = true;
 }
 
-static void block_sigint() {
+static void quit_handler(int signum) {
+  (void)signum;
+  dcpu_die = true;
+}
+
+static void block_signals() {
   struct sigaction sa;
-  sa.sa_handler = handler;
+  sa.sa_handler = int_handler;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   if (sigaction(SIGINT, &sa, NULL)) {
     fprintf(stderr, "error setting signal handler: %s\n", strerror(errno));
     fprintf(stderr, "continuing without signal support...");
   }
+
+  sa.sa_handler = quit_handler;
+  if (sigaction(SIGQUIT, &sa, NULL)) {
+    fprintf(stderr, "error setting signal handler: %s\n", strerror(errno));
+    fprintf(stderr, "continuing without signal support...");
+  }
+
+  struct termios new_termios;
+  tcgetattr(0, &old_termios);
+  new_termios = old_termios;
+  new_termios.c_cc[VQUIT] = 0x04; // ctrl-d
+  tcsetattr(0, TCSANOW, &new_termios);
 }
 
 int main(int argc, char **argv) {
@@ -145,13 +164,15 @@ int main(int argc, char **argv) {
   const char *image = argv[optind];
 
   // init term first so that image load status is visible...
-  block_sigint();
+  block_signals();
   dcpu_init(&dcpu, khz);
   dcpu_initterm(&dcpu);
   dcpu_initclock(&dcpu);
   dcpu_initops();
-  if (!dcpu_loadcore(&dcpu, image, bigend))
+  if (!dcpu_loadcore(&dcpu, image, bigend)) {
+    tcsetattr(0, TCSANOW, &old_termios);
     return -1;
+  }
 
   dcpu_msg("welcome to dcpu-16, version " DCPU_VERSION "\n");
   dcpu_msg("clock rate: %dkHz\n", khz);
@@ -180,5 +201,6 @@ int main(int argc, char **argv) {
     printf("\n\n");
   }
 
+  tcsetattr(0, TCSANOW, &old_termios);
   return 0;
 }

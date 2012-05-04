@@ -68,16 +68,7 @@ static void checkkey(dcpu *dcpu) {
   if (nextwrite != term.keybufread) {
     // buf has an empty slot, try to use it...
     int c = getch();
-    // always check for ctrl-d to allow immediate exit
-    switch (c) {
-      case 0x04:
-        // ctrl-d. exit.
-        dcpu_die = true;
-        return;
-      case ERR:
-        // no key, no problem.
-        return;
-    }
+    if (c == ERR) return; // no key, no problem.
 
     // enqueue key, raise interrupt if possible
     term.keybuf[term.keybufwrite] = c;
