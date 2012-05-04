@@ -143,6 +143,17 @@ class Deref(object):
     def emit(self, prog):
         pass
 
+class Pick(object):
+    # value is either the actual int value, or a string label
+    # which can be emitted into the instruction stream and later
+    # rewritten...
+    def __init__(self, val):
+        self.val = val
+    def value(self):
+        return 0x1a
+    def emit(self, prog):
+        prog.append(self.val)
+
 class Lit(object):
     # value is either the actual int value, or a string label
     # which can be emitted into the instruction stream and later
@@ -188,7 +199,6 @@ REGS = {
 
 OPERANDS = dict(REGS.items() + {
   "PEEK": Raw(0x19),
-  #"PICK": Raw(0x1a),   TODO support lit+SP
   "SP": Raw(0x1b),
   "PC": Raw(0x1c),
   "EX": Raw(0x1d)
@@ -224,6 +234,8 @@ def parse_arg(arg, a):
     if arg.upper() == 'PUSH':
         if not a: return PSHP
         else: raise SyntaxError("'push' is allowed only in 'b' position")
+    if arg.upper().startswith('PICK'):
+        return Pick(parse_lit(arg[4:].strip()))
     return Lit(parse_lit(arg), False, a)
 
 # this is a terrible hack, but it was so tempting...
