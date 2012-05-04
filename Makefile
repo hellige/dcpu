@@ -40,7 +40,7 @@ $(MAIN_O):out/%.o: $(MAIN_DIR)/%.c
 	$(CC) -c -o $@ $(CFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" \
 	    -MT"$(@:%.o=%.d)" $<
 
-colortest.img: colortest.dasm
+colortest.img: colortest.dasm masm
 	./masm $< $@
 
 out/boot.img: goforth.dasm masm
