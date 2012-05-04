@@ -231,6 +231,14 @@ u16 dcpu_killterm(void) {
   return term.vram;
 }
 
+void dcpu_exitmsg(char *fmt, ...) {
+  dcpu_killterm();
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+}
+
 void dcpu_awaitkey(void) {
   dcpu_msg("press a key...");
   timeout(-1);

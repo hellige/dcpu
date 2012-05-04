@@ -150,12 +150,8 @@ int main(int argc, char **argv) {
   dcpu_initterm(&dcpu);
   dcpu_initclock(&dcpu);
   dcpu_initops();
-  if (!dcpu_loadcore(&dcpu, image, bigend)) {
-    // ...even though that makes teardown a little uglier
-    dcpu_awaitkey();
-    dcpu_killterm();
+  if (!dcpu_loadcore(&dcpu, image, bigend))
     return -1;
-  }
 
   dcpu_msg("welcome to dcpu-16, version " DCPU_VERSION "\n");
   dcpu_msg("clock rate: %dkHz\n", khz);

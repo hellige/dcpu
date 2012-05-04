@@ -152,6 +152,7 @@ extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
 extern void dcpu_awaitkey(void);
 extern u16 dcpu_killterm(void);
+extern void dcpu_exitmsg(char *fmt, ...);
 extern volatile bool dcpu_break;
 extern volatile bool dcpu_die;
 

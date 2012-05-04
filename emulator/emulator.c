@@ -89,13 +89,13 @@ void dcpu_init(dcpu *dcpu, uint32_t khz) {
 bool dcpu_loadcore(dcpu *dcpu, const char *image, bool bigend) {
   FILE *img = fopen(image, "r");
   if (!img) {
-    dcpu_msg("error reading image '%s': %s\n", image, strerror(errno));
+    dcpu_exitmsg("error reading image '%s': %s\n", image, strerror(errno));
     return false;
   }
 
   int img_size = fread(dcpu->ram, 2, RAM_WORDS, img);
   if (ferror(img)) {
-    dcpu_msg("error reading image '%s': %s\n", image, strerror(errno));
+    dcpu_exitmsg("error reading image '%s': %s\n", image, strerror(errno));
     return false;
   }
 
