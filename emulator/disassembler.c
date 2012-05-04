@@ -49,7 +49,7 @@ static u16 *dis_operand(u16 *pc, u16 n, char *out, char *pshp) {
   } else switch (n) {
     case 0x18: strcpy(out, pshp); break;
     case 0x19: strcpy(out, "peek"); break;
-    case 0x1a: sprintf(out, "[0x%x+sp]", *pc++); break;
+    case 0x1a: sprintf(out, "pick 0x%x", *pc++); break;
     case 0x1b: strcpy(out, "sp"); break;
     case 0x1c: strcpy(out, "pc"); break;
     case 0x1d: strcpy(out, "ex"); break;

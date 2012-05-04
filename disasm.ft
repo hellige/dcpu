@@ -72,35 +72,57 @@
 variable /disasm-pc
 : disasm-pc@  ( -- u )  /disasm-pc @  1 /disasm-pc +! ;
 : "regs"   S" abcxyzij" ;
-: "opname"   S" xxxsetaddsubmuldivmodshlshrandborxorifeifnifgifb" ;
+: reg  ( reg -- )  "regs" drop + @ emit ;
+: "opname" S" ---setaddsubmulmlidivdvimodmdiandborxorshrasrshlifbifcifeifnifgifaiflifu------adxsbx------stistd" ;
 : opname  ( op -- )  3 * "opname" drop + 3 type space ;
-: disasm-op  ( inst -- op )  0x f and ;
-: disasm-a   ( inst -- arg )  4 rshift 0x 3f and ;
-: disasm-b   ( inst -- arg )  10 rshift ;
-: disasm-nextlit  ( -- )  disasm-pc@ @ 0 .r ;
-: decode-arg  ( arg -- ) case
-        0x 18 of ." pop" endof
-        0x 19 of ." peek" endof
-        0x 1a of ." push" endof
-        0x 1b of ." sp" endof
-        0x 1c of ." pc" endof
-        0x 1d of ." o" endof
-        0x 1e of ." [" disasm-nextlit ." ]" endof
-        0x 1f of disasm-nextlit endof
-        dup 0x 08 u< if 7 and "regs" drop + @ emit else
-        dup 0x 10 u< if 7 and ." [" "regs" drop + @ emit ." ]" else
-        dup 0x 18 u< if 7 and ." [" disasm-nextlit ." +" "regs" drop + @ emit ." ]" else
-        dup 0x 1f u> if 0x 1f and 0 .r else
-        dup ." unknown oparg: " 2 xu.r0
+: disasm-op  ( inst -- op )  0x 1f and ;
+: disasm-nextlit  ( arg -- ea )  case
+        0x 1a of disasm-pc@ @ endof
+        0x 1e of disasm-pc@ @ endof
+        0x 1f of disasm-pc@ @ endof
+        dup 0x 10 0x 18 within if drop disasm-pc@ @ else
+        0 swap
     endcase ;
+: fetch-b  ( inst -- arg ) 5 rshift 0x 1f and ;
+: disasm-b  ( inst -- pa pl ea arg )  S" push" rot fetch-b
+    dup disasm-nextlit swap ;
+: disasm-a  ( inst -- pa pl ea arg )  S" pop" rot 10 rshift
+    dup disasm-nextlit swap ;
+: decode-arg  ( pa pl ea arg -- ) case
+        0x 18 of drop 2dup type endof
+        0x 19 of ." peek" drop endof
+        0x 1a of ." pick " 0 .r endof
+        0x 1b of ." sp" drop endof
+        0x 1c of ." pc" drop endof
+        0x 1d of ." ex" drop endof
+        0x 1e of ." [" 0 .r ." ]" endof
+        0x 1f of 0 .r endof
+        dup 0x 08 u< if 7 and reg drop else
+        dup 0x 10 u< if 7 and ." [" reg ." ]" drop else
+        dup 0x 18 u< if 7 and ." [" 0 .r ." +" reg ." ]" drop else
+        dup 0x 1f u> if 0x 21 - 0 xu.r0 drop else
+        dup ." unknown oparg: " 2 xu.r0 nip
+    endcase 2drop ;
 : disasm-special ( inst -- )
-    dup disasm-a dup 0x 01 =
-    if drop ." jsr" else ." unk[" 2 xu.r0 ." ]" then space
-    disasm-b decode-arg ;
+    ( it's ok to deal with b before a, since b can't advance pc )
+    dup fetch-b case
+        0x 01 of ." jsr" endof
+        0x 08 of ." int" endof
+        0x 09 of ." iag" endof
+        0x 0a of ." ias" endof
+        0x 0b of ." rfi" endof
+        0x 0c of ." iaq" endof
+        0x 10 of ." hwn" endof
+        0x 11 of ." hwq" endof
+        0x 12 of ." hwi" endof
+        dup ." unk[" 2 xu.r0 ." ]"
+    endcase
+    space disasm-a decode-arg ;
 : disasm-inst  ( -- )
     space disasm-pc@ dup 4 xu.r0 ." : "
     @ dup disasm-op ?dup if
-        opname dup disasm-a decode-arg ." , " disasm-b decode-arg
+        opname dup disasm-a 2>r 2>r disasm-b decode-arg ." , "
+        2r> 2r> decode-arg
     else
         disasm-special
     then ;

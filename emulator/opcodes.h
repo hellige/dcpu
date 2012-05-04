@@ -71,7 +71,6 @@ enum opcode {
 
 
 #define FOR_EACH_SPOP(apply) \
-  apply(OP_SP_NON, "xxx", 0x00) \
   apply(OP_SP_JSR, "jsr", 0x01) \
   /* custom ops */ \
   apply(OP_SP_IMG, "img", 0x02) /* save core to core.img, up to addr in a */ \

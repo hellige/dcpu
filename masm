@@ -42,6 +42,7 @@ class Special(object):
 class DW(object):
     def __init__(self):
         OPCODES["DW"] = self
+        OPCODES["DAT"] = self
     def make(self, args):
         args = [parse_lit(x) for x in args]
         def emit(program):

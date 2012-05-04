@@ -101,7 +101,7 @@
 
 
 \ do LOOP loop
-\ TODO: implement leave
+\ TODO implement leave
 : do   0 here \ leave 0 and current addr on the compile-time stack
        compile 2>r \ move limit and index to return stack
        ; immediate
@@ -212,7 +212,8 @@
 \ print unsigned with minimum width (space-padded)
 : u.r  ( u width -- ) swap dup uwidth rot swap - spaces u. ;
 \ same thing, zero-padded
-: u.r0 ( u width -- ) swap dup uwidth rot swap - 0 ?do char 0 emit loop u. ;
+: u.r0 ( u width -- ) swap dup uwidth rot swap -
+    0 max 0 ?do char 0 emit loop u. ;
 \ print signed with minimum width (space-padded)
 : .r  ( n width -- ) swap dup 0<
     if negate 1 swap rot 1- else 0 swap rot then
