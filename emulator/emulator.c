@@ -240,7 +240,7 @@ static u16 decode_arg(dcpu *dcpu, uint8_t arg, u16 **addr, bool effects,
   uint8_t reg = arg & 0x7;
   if (arg & 0x10) {
     // compute the address as a separate variable to guarantee wrap on overflow
-    u16 address = dcpu->reg[reg] + next(dcpu, effects); // TODO: what if reg is PC?
+    u16 address = dcpu->reg[reg] + next(dcpu, effects);
     *addr = &dcpu->ram[address];
   }
   else if (arg & 0x8)
