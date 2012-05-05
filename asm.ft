@@ -1,0 +1,128 @@
+\ Copyright (c) 2012, Juan Felipe Garcia Catalan
+\ All rights reserved.
+\
+\ Redistribution and use in source and binary forms, with or without
+\ modification, are permitted provided that the following conditions are met:
+\
+\   Redistributions of source code must retain the above copyright notice,
+\   this list of conditions and the following disclaimer.
+\
+\   Redistributions in binary form must reproduce the above copyright
+\   notice, this list of conditions and the following disclaimer in the
+\   documentation and/or other materials provided with the distribution.
+\
+\ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+\ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+\ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+\ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+\ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+\ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+\ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+\ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+\ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+\ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+\ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+\ this file contains a simple forth assembler loosely based on ideas from
+\ http://www.bradrodriguez.com/papers/tcjassem.txt
+
+
+hex
+
+create aword 2 allot 0 aword !
+create bword 2 allot 0 bword !
+variable aorb aword aorb !
+
+
+\ basic opcodes
+
+: assemble ( a b op -- )
+  swap 5 lshift or swap a lshift or .s ,
+  0 aword @ <> if 1 aword + @ , then
+  0 bword @ <> if 1 bword + @ , then
+  0 aword !
+  0 bword !
+  aword aorb !
+;
+
+: basic-op create , does> @ assemble ;
+
+1  basic-op set, 2  basic-op add, 3  basic-op sub,
+4  basic-op mul, 5  basic-op mli, 6  basic-op div,
+7  basic-op dvi, 8  basic-op mod, 9  basic-op mdi,
+a  basic-op and, b  basic-op bor, c  basic-op xor,
+d  basic-op shr, e  basic-op asr, f  basic-op shl,
+10 basic-op ifb, 11 basic-op ifc, 12 basic-op ife,
+13 basic-op ifn, 14 basic-op ifg, 15 basic-op ifa,
+16 basic-op ifl, 17 basic-op ifu, 1a basic-op adx,
+1b basic-op sbx, 1e basic-op sti, 1f basic-op std,
+
+\special opcodes return their value and a 0
+: special-op create , does> @ 0 assemble ;
+
+1  special-op jsr, 8  special-op int, 9  special-op iag,
+a  special-op ias, b  special-op rfi, c  special-op iaq,
+10 special-op hwn, 11 special-op hwq, 12 special-op hwi,
+
+\register
+0 constant Ar 1 constant Br 2 constant Cr
+3 constant Xr 4 constant Yr 5 constant Zr
+6 constant Ir 7 constant Jr
+
+\deal with the extra word
+: nextword swap 1 aorb @ ! 1 aorb @ + ! bword aorb ! ;
+
+\[register]
+: [r] 8 + ;
+
+\[register + next word]
+: [r+] 10 + nextword ;
+
+\push, pop, peek
+18 constant push,
+18 constant pop,
+19 constant peek,
+: [sp+] 1a nextword ;
+
+\sp, pc , ex
+1b constant sp,
+1c constant pc,
+1d constant ex,
+
+\[nextword]
+: [nw] 1e nextword ;
+
+\literal
+: l,
+dup fffe 1e within if   
+       21 +
+    else
+	1f 
+   	nextword
+    then ;
+
+: :asm create here here 1 - ! ;
+
+: next;
+Yr [r] Xr set,
+1 l, Yr add,
+Xr [r] pc, set,
+;
+decimal
+
+\test asm words
+:asm five
+5 l, Zr [r] set,
+Yr [r] Xr set, \explicit next
+1 l, Yr add,
+Xr [r] pc, set,
+
+:asm six 
+6 l, Zr [r] set,
+next;
+
+\ save the new image
+here dump-core
+bye
+
