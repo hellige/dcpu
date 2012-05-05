@@ -38,7 +38,7 @@ variable aorb aword aorb !
 \ basic opcodes
 
 : assemble ( a b op -- )
-  swap 5 lshift or swap a lshift or .s ,
+  swap 5 lshift or swap a lshift or ,
   0 aword @ <> if 1 aword + @ , then
   0 bword @ <> if 1 bword + @ , then
   0 aword !
@@ -65,7 +65,7 @@ d  basic-op shr, e  basic-op asr, f  basic-op shl,
 a  special-op ias, b  special-op rfi, c  special-op iaq,
 10 special-op hwn, 11 special-op hwq, 12 special-op hwi,
 
-\register
+\registers
 0 constant Ar 1 constant Br 2 constant Cr
 3 constant Xr 4 constant Yr 5 constant Zr
 6 constant Ir 7 constant Jr
@@ -80,15 +80,11 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 : [r+] 10 + nextword ;
 
 \push, pop, peek
-18 constant push,
-18 constant pop,
-19 constant peek,
+18 constant push, 18 constant pop, 19 constant peek,
 : [sp+] 1a nextword ;
 
 \sp, pc , ex
-1b constant sp,
-1c constant pc,
-1d constant ex,
+1b constant sp, 1c constant pc, 1d constant ex,
 
 \[nextword]
 : [nw] 1e nextword ;
@@ -112,14 +108,13 @@ Xr [r] pc, set,
 decimal
 
 \test asm words
-:asm five
-5 l, Zr [r] set,
-Yr [r] Xr set, \explicit next
-1 l, Yr add,
-Xr [r] pc, set,
 
-:asm six 
-6 l, Zr [r] set,
+:asm five ( n -- 5 )
+5 l, Zr [r] set,
+next;
+
+:asm d256 ( n -- 256 )
+256 l, Zr [r] set,
 next;
 
 \ save the new image
