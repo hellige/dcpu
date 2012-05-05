@@ -654,11 +654,9 @@ move.1:     next
             next
 
             defcode(2r@, 0, tworpeek)
-            ; double ugly because dcpu-16 doesn't support sp+lit addressing
             sub z, 2
-            set a, sp
-            set [z], [a]
-            set [1+z], [1+a]
+            set [z], peek
+            set [1+z], pick 1
             next
 
             defcode(2rdrop, 0, twordrop)
