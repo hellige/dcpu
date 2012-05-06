@@ -105,6 +105,10 @@ of many other emulators yet. As far as I know, there is not yet any official
     it looks very good. The backspace keypress is broken (at least on Chrome
     on Mac), and it seems slower than it should be, but apart from that,
     everything looks good.
+  * deNULL's web emulator: http://dcpu.ru
+    As in the case of 0x10co.de, things look pretty good, but signed math
+    is broken. It thinks -50/5, 50/-5 and 50/5 are all equal to 50 under DVI.
+    DIV does know that 50/5 is 10.
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
