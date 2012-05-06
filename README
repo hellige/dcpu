@@ -98,8 +98,8 @@ of many other emulators yet. As far as I know, there is not yet any official
 1.7-compatible emulator from Notch.
   * http://0x10co.de/hiwhx
     Post-1.7, the keyboard handling is better specified and things look
-	very good. There are a couple of fishy things, but I will boldly say
-	that they're bugs in 0x10co.de, until I hear otherwise. ;)
+    very good. There are a couple of fishy things, but I will boldly say
+    that they're bugs in 0x10co.de, until I hear otherwise. ;)
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
