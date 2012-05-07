@@ -89,7 +89,7 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 \[nextword]
 : [nw] 1e nextword ;
 
-\literal
+\literal value
 : l,
 dup fffe 1e within if   
        21 +
@@ -98,7 +98,8 @@ dup fffe 1e within if
    	nextword
     then ;
 
-: :asm create here here 1 - ! ;
+: code create here here 1 - ! ;
+
 
 : next;
 Yr [r] Xr set,
@@ -109,15 +110,15 @@ decimal
 
 \test asm words
 
-:asm five ( n -- 5 )
+code five ( n -- 5 )
 5 l, Zr [r] set,
 next;
 
-:asm d256 ( n -- 256 )
+code d256 ( n -- 256 )
 256 l, Zr [r] set,
 next;
 
-\ save the new image
-here dump-core
-bye
+\ don't save the new image, prepend to disasm.ft instead
+\ here dump-core
+\ bye
 

@@ -49,7 +49,7 @@ out/boot.img: goforth.dasm masm
 
 goforth.img: goforth.ft asm.ft disasm.ft out/boot.img dcpu
 	cat goforth.ft | ./dcpu -k 10000 out/boot.img > /dev/null
-	cat asm.ft | ./dcpu -k 10000 core.img > /dev/null
+	cat asm.ft disasm.ft | ./dcpu -k 10000 core.img > /dev/null
 	mv core.img $@
 
 clean:
