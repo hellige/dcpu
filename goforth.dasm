@@ -425,6 +425,13 @@ dhend_:     ; just in case the jsr is 2 words...
             mdi [z], a
             next
 
+            defcode(/mod, 0, divmod)
+            set a, [z]
+            set [z], [1+z]
+            mdi [1+z], a
+            dvi [z], a
+            next
+
             defcode(lshift, 0, lshift)
             set a, [z]
             add z, 1
