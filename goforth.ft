@@ -279,7 +279,7 @@ term r g b hi 2* 4 lshift invert constant fgmask
 
 : bg ( term -- ) 2*  conattr @  bgmask and or conattr ! ;
 : fg ( term -- ) 2* 4 lshift  conattr @  fgmask and or conattr ! ;
-: blink  ( -- )  conattr @ 1 or conattr ! ; \ this one is a toggle
+: blink  ( -- )  conattr @ 1 xor conattr ! ; \ this one is a toggle
 : defcon ( -- )  term bg  term r g b fg ;
 
 
