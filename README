@@ -100,6 +100,15 @@ of many other emulators yet. As far as I know, there is not yet any official
     Post-1.7, the keyboard handling is better specified and things look
     very good. There are a couple of fishy things, but I will boldly say
     that they're bugs in 0x10co.de, until I hear otherwise. ;)
+  * http://fasm.elasticbeanstalk.com/
+    I can't figure out how to save a project here, so no direct link. But
+    it looks very good. The backspace keypress is broken (at least on Chrome
+    on Mac), and it seems slower than it should be, but apart from that,
+    everything looks good.
+  * deNULL's web emulator: http://dcpu.ru
+    As in the case of 0x10co.de, things look pretty good, but signed math
+    is broken. It thinks -50/5, 50/-5 and 50/5 are all equal to 50 under DVI.
+    DIV does know that 50/5 is 10.
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
