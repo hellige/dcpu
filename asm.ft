@@ -96,6 +96,13 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
        1f 
        nextword
      then ;
+
+\ control structures
+: begin, ( -- addr ) here ;
+: while, ( addr -- ) l, pc, set, ;
+
+
+
 \ we can now create codewords from gforth
 : code create here here 1 - ! ;
 
@@ -123,12 +130,21 @@ decimal
 \test asm words
 
 code five ( n -- 5 )
-5 l, Zr [r] set,
+     5 l, Zr [r] set,
 next;
 
 code d256 ( n -- 256 )
-256 l, Zr [r] set,
+     256 l, Zr [r] set,
 next;
+
+code pushfive ( -- 1 1 1 1 1 )
+     0 l, Ar set, 
+     begin, 
+       1 l, Zr sub, 
+       1 l, Zr [r] set,
+       1 l, Ar add, 
+       5 l, Ar ifn, while, 
+     next;
 
 : gimmefive create code; 5 l, Zr [r] set, next;
 
