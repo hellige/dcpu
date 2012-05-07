@@ -89,24 +89,35 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 \[nextword]
 : [nw] 1e nextword ;
 
-\literal value
-: l,
-dup fffe 1e within if   
+\ literal value, either as short form or into next word
+: l, dup fffe 1e within if   
        21 +
-    else
-	1f 
-   	nextword
-    then ;
-
+     else
+       1f 
+       nextword
+     then ;
+\ we can now create codewords from gforth
 : code create here here 1 - ! ;
 
-
+\ this is equivalent to the 'next' macro in goforth.dasm
 : next;
 Yr [r] Xr set,
 1 l, Yr add,
 Xr [r] pc, set,
 ;
-decimal
+
+\ this works like does>, but for assembly
+\ it terminates the word definition so no need for ";"
+\ the assembled code just follows in memory
+\ and the generated words point to it in their xt
+
+: code;
+  compile here
+  compile setdoes
+  compile exit
+  latest @ hidden
+  [compile] [
+  ; immediate  
 
 \test asm words
 
