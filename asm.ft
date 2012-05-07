@@ -101,28 +101,24 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 \ this is equivalent to the 'next' macro in goforth.dasm
 : next;
-Yr [r] Xr set,
-1 l, Yr add,
-Xr [r] pc, set,
-;
+  Yr [r] Xr set,
+  1 l, Yr add,
+  Xr [r] pc, set, ;
 
-\ this should works like does>, but for assembly
-\ it terminates the word definition so no need for ";"
+\ this works like does>, but for assembly
+\ it terminates the word definition so no need for ";" afterwards
 \ the assembled code just follows in memory
-\ and the generated words should point to that code in their xt
-
+\ and the generated words point to that code in their xt
 : code;
-  compile here
+  compile lit here 0 ,
   compile setdoes
   compile exit
+  here swap !
   latest @ hidden
   [compile] [
   ; immediate  
 
-\ this doesnt work yet
-\ it's supposed to be a word that creates words
-\ that themselves replace the top of the stack by 5 (silly)
-\ : gimmefive create code; 5 l, Zr [r] set, next,
+decimal
 
 \test asm words
 
@@ -134,7 +130,9 @@ code d256 ( n -- 256 )
 256 l, Zr [r] set,
 next;
 
-\ don't save the new image, prepend to disasm.ft instead
+: gimmefive create code; 5 l, Zr [r] set, next;
+
+\ don't save the new image, prepend to disasm.ft for now instead
 \ here dump-core
 \ bye
 
