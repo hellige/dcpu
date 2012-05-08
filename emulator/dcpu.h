@@ -62,7 +62,7 @@ typedef uint64_t tstamp_t;
 #define DISPLAY_HZ    30
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
-#define KBD_BAUD      4000
+#define KBD_BAUD      100000
 #define CLOCKDEV_HZ   60
 
 struct dcpu_t;
