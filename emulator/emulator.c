@@ -81,6 +81,7 @@ void dcpu_init(dcpu *dcpu, uint32_t khz) {
   dcpu->ia = 0;
   for (int i = 0; i < NREGS; i++) dcpu->reg[i] = 0;
   for (int i = 0; i < RAM_WORDS; i++) dcpu->ram[i] = 0;
+  dcpu->qints = false;
   dcpu->intqwrite = 0;
   dcpu->intqread = 0;
   dcpu->nhw = 0;
