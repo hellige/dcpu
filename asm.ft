@@ -98,8 +98,20 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
      then ;
 
 \ control structures
+
+\ basic loop
 : begin, ( -- addr ) here ;
 : while, ( addr -- ) l, pc, set, ;
+
+\ if, ... then,
+\ TODO else,
+: if, ( -- addr ) here 0 , 0 , ;
+: then, dup 7f81 swap ! 1 + here swap ! ; \ 7f81 is set pc, [nextword]
+
+\ the comparison opcodes need to be negated to work as intended
+\ TODO rest of the if*
+: =if, ifn, if, ;
+: <>if, ife, if, ;
 
 
 
@@ -133,18 +145,23 @@ code five ( n -- 5 )
      5 l, Zr [r] set,
 next;
 
-code d256 ( n -- 256 )
-     256 l, Zr [r] set,
-next;
-
 code pushfive ( -- 1 1 1 1 1 )
      0 l, Ar set, 
      begin, 
        1 l, Zr sub, 
-       1 l, Zr [r] set,
+       5 l, Zr [r] set,
        1 l, Ar add, 
        5 l, Ar ifn, while, 
      next;
+
+code five?
+     false l, Ar set,
+     5 l, Zr [r] =if,
+         true l, Ar set,
+       then,
+     Ar Zr [r] set,
+     next;
+
 
 : gimmefive create code; 5 l, Zr [r] set, next;
 
