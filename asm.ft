@@ -107,6 +107,7 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 \ TODO else,
 : if, ( -- addr ) 7f81 , here 0 , ; \ 7f81 is set pc, [nextword]
 : then, here swap ! ;
+: else, 7f81 ,  here  0 , swap here swap ! ;
 
 \ clearer comparison opcode generation for if, then,
 \ TODO test these!
@@ -121,7 +122,7 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 
 
-\ we can now create codewords from gforth
+\ we can now create codewords from goforth
 : code create here here 1 - ! ;
 
 \ this is equivalent to the 'next' macro in goforth.dasm
@@ -145,13 +146,13 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 decimal
 
-\test asm words
+\ example asm words
 
 code five ( n -- 5 )
      5 l, Zr [r] set,
 next;
 
-code pushfive ( -- 1 1 1 1 1 )
+code pushfive ( -- 5 5 5 5 5 )
      0 l, Ar set, 
      begin, 
        1 l, Zr sub, 
@@ -163,11 +164,18 @@ code pushfive ( -- 1 1 1 1 1 )
 code five?
      false l, Ar set,
      5 l, Zr [r] =if,
-         true l, Ar set,
-       then,
+       true l, Ar set,
+     then,
      Ar Zr [r] set,
      next;
 
+code fiftyfive?
+     55 l, Zr [r] =if,
+       true l, Zr [r] set,
+     else,
+       false l, Zr [r] set,
+     then,
+     next;
 
 : gimmefive create code; 5 l, Zr [r] set, next;
 
