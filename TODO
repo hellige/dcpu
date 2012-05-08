@@ -1,0 +1,4 @@
+ - pluggable hardware devices via command-line option
+ - priority queue scheduling rather than every-device-every-tick
+ - graphical lem-1802
+ - detection and halt pending interrupt on halt-loop

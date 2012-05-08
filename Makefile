@@ -9,8 +9,8 @@ PLATLIBS =
 
 system := $(shell uname)
 ifeq ($(system),Linux)
-    PLATCFLAGS = -fdiagnostics-show-option -fpic -DDCPU_LINUX
-    PLATLIBS = -lrt
+    PLATCFLAGS = -fdiagnostics-show-option -fpic -DDCPU_LINUX -I/usr/include/SDL
+    PLATLIBS = -lrt -lSDL
 endif
 ifeq ($(system),Darwin)
     DARWIN_ARCH = x86_64 # i386
@@ -20,7 +20,7 @@ endif
 
 MAIN_DIR = emulator
 MAIN_S = clock.c dcpu.c debugger.c disassembler.c emulator.c opcodes.c \
-    terminal.c
+    sdl_lem.c terminal.c
 MAIN_O = $(patsubst %.c,out/%.o,$(MAIN_S))
 
 ALL_O = $(MAIN_O)

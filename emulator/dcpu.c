@@ -168,6 +168,7 @@ int main(int argc, char **argv) {
   dcpu_init(&dcpu, khz);
   dcpu_initterm(&dcpu);
   dcpu_initclock(&dcpu);
+  dcpu_initlem(&dcpu);
   dcpu_initops();
   if (!dcpu_loadcore(&dcpu, image, bigend)) {
     tcsetattr(0, TCSANOW, &old_termios);
@@ -181,6 +182,7 @@ int main(int argc, char **argv) {
   dcpu_msg("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.\n");
   dcpu_run(&dcpu, debug);
 
+  dcpu_killlem();
   u16 vram = dcpu_killterm();
   puts(" * dcpu-16 halted.");
 

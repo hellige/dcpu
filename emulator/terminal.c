@@ -186,7 +186,7 @@ void dcpu_initterm(dcpu *dcpu) {
   lem->hwi = &lem_hwi;
   lem->tick = &lem_tick;
 
-  // should be done prior to initscr, and it doesn't matter if we do it twice
+  // set up curses...
   initscr();
   start_color();
   cbreak();

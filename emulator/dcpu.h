@@ -62,6 +62,7 @@ typedef uint64_t tstamp_t;
 #define DISPLAY_HZ    30
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
+#define SCR_BORDER    8
 #define KBD_BAUD      100000
 #define CLOCKDEV_HZ   60
 
@@ -140,6 +141,10 @@ extern bool dcpu_debug(dcpu *dcpu);
 
 // opcodes.c
 extern void dcpu_initops(void);
+
+// sdl_lem.c
+extern void dcpu_initlem(dcpu *dcpu);
+extern u16 dcpu_killlem(void);
 
 // terminal.c
 extern void dcpu_initterm(dcpu *dcpu);
