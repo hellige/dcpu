@@ -101,17 +101,23 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 \ basic loop
 : begin, ( -- addr ) here ;
-: while, ( addr -- ) l, pc, set, ;
+: while, ( addr -- ) here swap - 1 + l, pc, sub, ;
 
 \ if, ... then,
 \ TODO else,
-: if, ( -- addr ) here 0 , 0 , ;
-: then, dup 7f81 swap ! 1 + here swap ! ; \ 7f81 is set pc, [nextword]
+: if, ( -- addr ) 7f81 , here 0 , ; \ 7f81 is set pc, [nextword]
+: then, here swap ! ;
 
-\ the comparison opcodes need to be negated to work as intended
-\ TODO rest of the if*
+\ clearer comparison opcode generation for if, then,
+\ TODO test these!
 : =if, ifn, if, ;
 : <>if, ife, if, ;
+: &=0if, ifb, if, ;
+: &<>0if, ifc, if, ;
+: >if, ifg, if, ;
+: <if, ifl, if, ;
+: s>if, ifa, if, ;
+: s<if, ifu, if, ;
 
 
 
