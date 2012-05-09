@@ -34,6 +34,13 @@
 #include <string.h>
 #include <termios.h>
 
+/* SDL on Mac OS wants to replace main, and must use funky macros
+   to do it. we don't need any SDL stuff here, but we do need to include
+   SDL.h prior to the definition of main(). ugly. */
+#ifdef USE_SDL
+#include <SDL.h>
+#endif
+
 #include "dcpu.h"
 #include "opcodes.h"
 
@@ -45,6 +52,7 @@ static void usage(char **argv) {
   fprintf(stderr, "usage: %s [options] <image>\n", argv[0]);
   fprintf(stderr, "   -h, --help           display this message\n");
   fprintf(stderr, "   -v, --version        display the version and exit\n");
+  fprintf(stderr, "   -g, --graphics       enable graphical display window\n");
   fprintf(stderr, "   -k, --khz=k          set emulator clock rate (in kHz)\n");
   fprintf(stderr, "   -e, --little-endian  image file is little-endian\n");
   fprintf(stderr, "   -d, --debug-boot     enter debugger on boot\n");
@@ -101,6 +109,7 @@ int main(int argc, char **argv) {
   bool bigend = true;
   bool debug = false;
   bool dump_screen = false;
+  bool graphics = false;
   dcpu dcpu;
   dcpu.detect_loops = false;
 
@@ -110,6 +119,7 @@ int main(int argc, char **argv) {
     static struct option long_options[] = {
       {"help", 0, 0, 'h'},
       {"version", 0, 0, 'v'},
+      {"graphics", 0, 0, 'g'},
       {"khz", 1, 0, 'k'},
       {"debug-boot", 0, 0, 'd'},
       {"little-endian", 0, 0, 'e'},
@@ -118,7 +128,7 @@ int main(int argc, char **argv) {
       {0, 0, 0, 0},
     };
 
-    c = getopt_long(argc, argv, "hvk:dels", long_options, NULL);
+    c = getopt_long(argc, argv, "hvgk:dels", long_options, NULL);
 
     if (c == -1) break;
 
@@ -129,6 +139,9 @@ int main(int argc, char **argv) {
       case 'v':
         puts("dcpu-16, version " DCPU_VERSION);
         return 0;
+      case 'g':
+        graphics = true;
+        break;
       case 'k': {
         char *endptr;
         khz = strtoul(optarg, &endptr, 10);
@@ -165,11 +178,11 @@ int main(int argc, char **argv) {
 
   // init term first so that image load status is visible...
   block_signals();
+  dcpu_initops();
   dcpu_init(&dcpu, khz);
   dcpu_initterm(&dcpu);
   dcpu_initclock(&dcpu);
-  dcpu_initlem(&dcpu);
-  dcpu_initops();
+  if (graphics) dcpu_initlem(&dcpu);
   if (!dcpu_loadcore(&dcpu, image, bigend)) {
     tcsetattr(0, TCSANOW, &old_termios);
     return -1;
@@ -182,7 +195,7 @@ int main(int argc, char **argv) {
   dcpu_msg("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.\n");
   dcpu_run(&dcpu, debug);
 
-  dcpu_killlem();
+  if (graphics) dcpu_killlem();
   u16 vram = dcpu_killterm();
   puts(" * dcpu-16 halted.");
 

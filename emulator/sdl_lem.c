@@ -27,9 +27,20 @@
 
 #include <stdlib.h>
 
+#include "dcpu.h"
+
+#ifndef USE_SDL
+
+// stubs for building without graphics support:
+void dcpu_initlem(dcpu *dcpu) {}
+u16 dcpu_killlem(void) { return 0; }
+
+#else /* USE_SDL */
+
+// the real SDL implementation follows...
+
 #include <SDL.h>
 
-#include "dcpu.h"
 
 struct screen_t {
   tstamp_t tickns;
@@ -157,3 +168,5 @@ void dcpu_redraw(dcpu *dcpu) {
   wrefresh(term.vidwin);
 }
 */
+
+#endif /* USE_SDL */

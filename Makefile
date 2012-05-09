@@ -1,7 +1,10 @@
 CC = gcc
 DEBUG = 
-CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS)
-LIBS = -lncurses $(PLATLIBS)
+CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS) \
+    `pkg-config --silence-errors --cflags sdl` \
+    $(shell pkg-config --exists sdl && echo "-DUSE_SDL")
+
+LIBS = -lncurses `pkg-config --silence-errors --libs sdl` $(PLATLIBS)
 
 PLATCFLAGS = 
 PLATLDFLAGS = 
@@ -9,8 +12,8 @@ PLATLIBS =
 
 system := $(shell uname)
 ifeq ($(system),Linux)
-    PLATCFLAGS = -fdiagnostics-show-option -fpic -DDCPU_LINUX -I/usr/include/SDL
-    PLATLIBS = -lrt -lSDL
+    PLATCFLAGS = -fdiagnostics-show-option -fpic -DDCPU_LINUX
+    PLATLIBS = -lrt
 endif
 ifeq ($(system),Darwin)
     DARWIN_ARCH = x86_64 # i386
