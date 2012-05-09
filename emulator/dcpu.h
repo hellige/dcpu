@@ -66,6 +66,7 @@ typedef uint64_t tstamp_t;
 #define SCR_BORDER    8
 #define KBD_BAUD      100000
 #define CLOCKDEV_HZ   60
+#define SCR_SCALE     2
 
 struct dcpu_t;
 

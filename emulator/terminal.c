@@ -149,6 +149,12 @@ static u16 lem_hwi(dcpu *dcpu) {
     case 3: // SET_BORDER_COLOR
       term.nextborder = dcpu->reg[REG_B] & 0xf;
       break;
+    case 4: // MEM_DUMP_FONT
+      dcpu_msg("warning: MEM_DUMP_FONT unsupported on text-only terminal.\n");
+      break;
+    case 5: // MEM_DUMP_PALETTE
+      dcpu_msg("warning: MEM_DUMP_PALETTE unsupported on text-only terminal.\n");
+      break;
   }
   return 0; // no extra cycles
 }

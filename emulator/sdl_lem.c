@@ -106,9 +106,7 @@ static u16 lem_hwi(dcpu *dcpu) {
 static void lem_redraw(dcpu *dcpu, tstamp_t now); // TODO delete
 static void lem_tick(dcpu *dcpu, tstamp_t now) {
   if (now > screen.nexttick) {
-    tstamp_t start = dcpu_now();
     lem_redraw(dcpu, now); // TODO how to hook into dcpu_redraw?
-    dcpu_msg("redraw took: %lldns\n", dcpu_now() - start);
     screen.nexttick += screen.tickns;
   }
 }
@@ -160,7 +158,8 @@ void dcpu_initlem(dcpu *dcpu) {
     exit(1);
   }
 
-  screen.scr = SDL_SetVideoMode(WIN_WIDTH, WIN_HEIGHT, 32 /* bits-per-pixel*/,
+  screen.scr = SDL_SetVideoMode(WIN_WIDTH * SCR_SCALE, WIN_HEIGHT * SCR_SCALE,
+      32 /* bits-per-pixel*/,
       SDL_SWSURFACE | SDL_DOUBLEBUF);
   if (!screen.scr) {
     dcpu_exitmsg("unable to set sdl video mode: %s\n", SDL_GetError());
@@ -197,8 +196,6 @@ static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
   screen.contents[addr] = word;
   screen.dirty = true;
 
-  uint32_t *dstpix = (uint32_t *)screen.scr->pixels;
-  int pitch = screen.scr->pitch / 4;
   int left = col * 4 + SCR_BORDER;
   int top = row * 8 + SCR_BORDER;
   
@@ -221,8 +218,12 @@ static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
 
   for (int x = 0; x < 4; x++) {
     for (int y = 7; y >= 0; y--) {
-      dstpix[left+x + pitch*(top+y)] =
-        glyph & (1<<31) && (!blink || screen.curblink) ? fg : bg;
+      SDL_Rect pix;
+      pix.x = (left+x) * SCR_SCALE;
+      pix.y = (top+y) * SCR_SCALE;
+      pix.w = pix.h = SCR_SCALE;
+      SDL_FillRect(screen.scr, &pix,
+        glyph & (1<<31) && (!blink || screen.curblink) ? fg : bg);
       glyph <<= 1;
     }
   }
@@ -234,20 +235,20 @@ static void draw_border(dcpu *dcpu) {
     screen.dirty = true;
 
     uint32_t col = color(dcpu, screen.curborder);
-    SDL_Rect dst;
-    dst.x = 0;
-    dst.y = 0;
-    dst.w = WIN_WIDTH;
-    dst.h = SCR_BORDER;
-    SDL_FillRect(screen.scr, &dst, col);
-    dst.y = WIN_HEIGHT - SCR_BORDER;
-    SDL_FillRect(screen.scr, &dst, col);
-    dst.y = SCR_BORDER;
-    dst.w = SCR_BORDER;
-    dst.h = WIN_HEIGHT - 2*SCR_BORDER;
-    SDL_FillRect(screen.scr, &dst, col);
-    dst.x = WIN_WIDTH - SCR_BORDER;
-    SDL_FillRect(screen.scr, &dst, col);
+    SDL_Rect rect;
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = WIN_WIDTH * SCR_SCALE;
+    rect.h = SCR_BORDER * SCR_SCALE;
+    SDL_FillRect(screen.scr, &rect, col);
+    rect.y = (WIN_HEIGHT - SCR_BORDER) * SCR_SCALE;
+    SDL_FillRect(screen.scr, &rect, col);
+    rect.y = SCR_BORDER * SCR_SCALE;
+    rect.w = SCR_BORDER * SCR_SCALE;
+    rect.h = (WIN_HEIGHT - 2*SCR_BORDER) * SCR_SCALE;
+    SDL_FillRect(screen.scr, &rect, col);
+    rect.x = (WIN_WIDTH - SCR_BORDER) * SCR_SCALE;
+    SDL_FillRect(screen.scr, &rect, col);
   }
 }
 
