@@ -884,12 +884,10 @@ isspace_:   set j, 0
             set pc, pop
 
             ; Takes address of character in b and lowers it in-place.
-lower_:     ifg [b], 0x5a
-            set pc, lower_.end
-            ifg 0x41, [b]
-            set pc, lower_.end
+lower_:     ifl [b], 0x5b
+            ifg [b], 0x40
             add [b], 0x20 ; Shift the character from upper- to lowercase.
-lower_.end: set pc, pop
+            set pc, pop
 
             ; expects address of string in a, upper limit in c
 dropspace_: ife a, c
