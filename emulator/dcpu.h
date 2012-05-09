@@ -60,10 +60,13 @@ typedef uint64_t tstamp_t;
 #define HW_SIZE   8
 
 #define DISPLAY_HZ    30
+#define BLINK_HZ      2
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
+#define SCR_BORDER    8
 #define KBD_BAUD      100000
 #define CLOCKDEV_HZ   60
+#define SCR_SCALE     2
 
 struct dcpu_t;
 
@@ -141,8 +144,12 @@ extern bool dcpu_debug(dcpu *dcpu);
 // opcodes.c
 extern void dcpu_initops(void);
 
+// sdl_lem.c
+extern void dcpu_initlem(dcpu *dcpu);
+extern u16 dcpu_killlem(void);
+
 // terminal.c
-extern void dcpu_initterm(dcpu *dcpu);
+extern void dcpu_initterm(dcpu *dcpu, bool display);
 extern void dcpu_msg(char *fmt, ...)
   __attribute__ ((format (printf, 1, 2)));
 extern int dcpu_getch(void);
@@ -150,7 +157,6 @@ extern int dcpu_getstr(char *buf, int n);
 extern void dcpu_redraw(dcpu *dcpu);
 extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
-extern void dcpu_awaitkey(void);
 extern u16 dcpu_killterm(void);
 extern void dcpu_exitmsg(char *fmt, ...);
 extern volatile bool dcpu_break;

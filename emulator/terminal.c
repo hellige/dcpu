@@ -149,6 +149,12 @@ static u16 lem_hwi(dcpu *dcpu) {
     case 3: // SET_BORDER_COLOR
       term.nextborder = dcpu->reg[REG_B] & 0xf;
       break;
+    case 4: // MEM_DUMP_FONT
+      dcpu_msg("warning: MEM_DUMP_FONT unsupported on text-only terminal.\n");
+      break;
+    case 5: // MEM_DUMP_PALETTE
+      dcpu_msg("warning: MEM_DUMP_PALETTE unsupported on text-only terminal.\n");
+      break;
   }
   return 0; // no extra cycles
 }
@@ -160,7 +166,7 @@ static void lem_tick(dcpu *dcpu, tstamp_t now) {
   }
 }
 
-void dcpu_initterm(dcpu *dcpu) {
+void dcpu_initterm(dcpu *dcpu, bool display) {
   term.tickns = 1000000000 / DISPLAY_HZ;
   term.nexttick = dcpu_now();
   term.keyns = 1000000000 / KBD_BAUD;
@@ -179,14 +185,16 @@ void dcpu_initterm(dcpu *dcpu) {
   kbd->mfr = 0x01220423;
   kbd->hwi = &kbd_hwi;
   kbd->tick = &kbd_tick;
-  device *lem = dcpu_addhw(dcpu);
-  lem->id = 0x7349f615;
-  lem->version = 0x1802;
-  lem->mfr = 0x1c6c8b36;
-  lem->hwi = &lem_hwi;
-  lem->tick = &lem_tick;
+  if (display) { // TODO this is pretty hokey
+    device *lem = dcpu_addhw(dcpu);
+    lem->id = 0x7349f615;
+    lem->version = 0x1802;
+    lem->mfr = 0x1c6c8b36;
+    lem->hwi = &lem_hwi;
+    lem->tick = &lem_tick;
+  }
 
-  // should be done prior to initscr, and it doesn't matter if we do it twice
+  // set up curses...
   initscr();
   start_color();
   cbreak();
@@ -228,12 +236,6 @@ void dcpu_exitmsg(char *fmt, ...) {
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   va_end(args);
-}
-
-void dcpu_awaitkey(void) {
-  dcpu_msg("press a key...");
-  timeout(-1);
-  getch();
 }
 
 int dcpu_getstr(char *buf, int n) {

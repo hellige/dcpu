@@ -1,7 +1,10 @@
 CC = gcc
 DEBUG = 
-CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS)
-LIBS = -lncurses $(PLATLIBS)
+CFLAGS = -ggdb3 -std=gnu99 -O3 -Wall -Wextra -pedantic $(DEBUG) $(PLATCFLAGS) \
+    `pkg-config --silence-errors --cflags sdl` \
+    $(shell pkg-config --exists sdl && echo "-DUSE_SDL")
+
+LIBS = -lncurses `pkg-config --silence-errors --libs sdl` $(PLATLIBS)
 
 PLATCFLAGS = 
 PLATLDFLAGS = 
@@ -20,7 +23,7 @@ endif
 
 MAIN_DIR = emulator
 MAIN_S = clock.c dcpu.c debugger.c disassembler.c emulator.c opcodes.c \
-    terminal.c
+    sdl_lem.c terminal.c
 MAIN_O = $(patsubst %.c,out/%.o,$(MAIN_S))
 
 ALL_O = $(MAIN_O)
