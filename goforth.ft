@@ -236,13 +236,13 @@
 \ strings
 : .(   char ) parse type ; immediate
 
-: S"   compile litstring  char " parse
+: s"   compile litstring  char " parse
        dup ,                    \ compile the count
        here                     \ save current compile location
        swap dup allot           \ advance it
        move ; immediate         \ copy the string
 
-: ."   [compile] S"  compile type ; immediate
+: ."   [compile] s"  compile type ; immediate
 
 
 \ memory dump
@@ -266,7 +266,7 @@ variable quitword
 : abort   s0 @ dsp!  quitword @ execute ;
 \ abort" is similar, but prints a message and only fires if n is non-zero
 : doabrt  ( n a u -- ) rot if cr ." ABORT: " type abort else 2drop then ;
-: abort"  ( n -- )  [compile] S" compile doabrt ; immediate
+: abort"  ( n -- )  [compile] s" compile doabrt ; immediate
 
 
 \ words to handle terminal attributes. see below for examples...

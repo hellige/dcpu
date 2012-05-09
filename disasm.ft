@@ -71,9 +71,9 @@
 
 variable /disasm-pc
 : disasm-pc@  ( -- u )  /disasm-pc @  1 /disasm-pc +! ;
-: "regs"   S" abcxyzij" ;
+: "regs"   s" abcxyzij" ;
 : reg  ( reg -- )  "regs" drop + @ emit ;
-: "opname" S" ---setaddsubmulmlidivdvimodmdiandborxorshrasrshlifbifcifeifnifgifaiflifu------adxsbx------stistd" ;
+: "opname" s" ---setaddsubmulmlidivdvimodmdiandborxorshrasrshlifbifcifeifnifgifaiflifu------adxsbx------stistd" ;
 : opname  ( op -- )  3 * "opname" drop + 3 type space ;
 : disasm-op  ( inst -- op )  0x 1f and ;
 : disasm-nextlit  ( arg -- ea )  case
@@ -84,9 +84,9 @@ variable /disasm-pc
         0 swap
     endcase ;
 : fetch-b  ( inst -- arg ) 5 rshift 0x 1f and ;
-: disasm-b  ( inst -- pa pl ea arg )  S" push" rot fetch-b
+: disasm-b  ( inst -- pa pl ea arg )  s" push" rot fetch-b
     dup disasm-nextlit swap ;
-: disasm-a  ( inst -- pa pl ea arg )  S" pop" rot 10 rshift
+: disasm-a  ( inst -- pa pl ea arg )  s" pop" rot 10 rshift
     dup disasm-nextlit swap ;
 : decode-arg  ( pa pl ea arg -- ) case
         0x 18 of drop 2dup type endof
