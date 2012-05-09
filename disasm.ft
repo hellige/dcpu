@@ -99,7 +99,7 @@ variable /disasm-pc
         0x 1f of 0 .r endof
         dup 0x 08 u< if 7 and reg drop else
         dup 0x 10 u< if 7 and ." [" reg ." ]" drop else
-        dup 0x 18 u< if 7 and ." [" 0 .r ." +" reg ." ]" drop else
+        dup 0x 18 u< if 7 and swap ." [" 0 .r ." +" reg ." ]" else
         dup 0x 1f u> if 0x 21 - 0 xu.r0 drop else
         dup ." unknown oparg: " 2 xu.r0 nip
     endcase 2drop ;
