@@ -60,6 +60,7 @@ typedef uint64_t tstamp_t;
 #define HW_SIZE   8
 
 #define DISPLAY_HZ    30
+#define BLINK_HZ      2
 #define SCR_HEIGHT    12
 #define SCR_WIDTH     32
 #define SCR_BORDER    8
@@ -147,7 +148,7 @@ extern void dcpu_initlem(dcpu *dcpu);
 extern u16 dcpu_killlem(void);
 
 // terminal.c
-extern void dcpu_initterm(dcpu *dcpu);
+extern void dcpu_initterm(dcpu *dcpu, bool display);
 extern void dcpu_msg(char *fmt, ...)
   __attribute__ ((format (printf, 1, 2)));
 extern int dcpu_getch(void);

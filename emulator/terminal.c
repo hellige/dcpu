@@ -160,7 +160,7 @@ static void lem_tick(dcpu *dcpu, tstamp_t now) {
   }
 }
 
-void dcpu_initterm(dcpu *dcpu) {
+void dcpu_initterm(dcpu *dcpu, bool display) {
   term.tickns = 1000000000 / DISPLAY_HZ;
   term.nexttick = dcpu_now();
   term.keyns = 1000000000 / KBD_BAUD;
@@ -179,12 +179,14 @@ void dcpu_initterm(dcpu *dcpu) {
   kbd->mfr = 0x01220423;
   kbd->hwi = &kbd_hwi;
   kbd->tick = &kbd_tick;
-  device *lem = dcpu_addhw(dcpu);
-  lem->id = 0x7349f615;
-  lem->version = 0x1802;
-  lem->mfr = 0x1c6c8b36;
-  lem->hwi = &lem_hwi;
-  lem->tick = &lem_tick;
+  if (display) { // TODO this is pretty hokey
+    device *lem = dcpu_addhw(dcpu);
+    lem->id = 0x7349f615;
+    lem->version = 0x1802;
+    lem->mfr = 0x1c6c8b36;
+    lem->hwi = &lem_hwi;
+    lem->tick = &lem_tick;
+  }
 
   // set up curses...
   initscr();

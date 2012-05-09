@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
   block_signals();
   dcpu_initops();
   dcpu_init(&dcpu, khz);
-  dcpu_initterm(&dcpu);
+  dcpu_initterm(&dcpu, !graphics);
   dcpu_initclock(&dcpu);
   if (graphics) dcpu_initlem(&dcpu);
   if (!dcpu_loadcore(&dcpu, image, bigend)) {

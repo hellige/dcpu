@@ -1,6 +1,5 @@
  - pluggable hardware devices via command-line option
  - priority queue scheduling rather than every-device-every-tick
- - graphical lem-1802
  - detection and halt pending interrupt on halt-loop
  - forth hacking
    - move all raw assembler to before forthstart
@@ -8,3 +7,5 @@
    - assembler
  - list of 1.7-compatible tools?
  - 1.7 emulator test cases?
+ - 'see u/mod' is wrong!
+ - screen magnification for sdl screen
