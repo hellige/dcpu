@@ -148,7 +148,7 @@ variable /disasm-pc
     ." unrecognized code field value"
     endcase
     drop cr ;
-: see   ' ?dup 0= if abort" no such word" then cr xt-see ;
+: see   ' ?dup 0= abort" no such word" cr xt-see ;
 
 
 \ save the new image

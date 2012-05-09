@@ -289,10 +289,10 @@ term r g b hi 2* 4 lshift invert constant fgmask
 : quit   cr  r0 @ rsp!
     begin
       defcon  cr refill  term g hi fg
-      0= if abort" failed to refill input buffer" then
+      0= abort" failed to refill input buffer"
       term g fg  interpret  term g hi fg
-      0= if abort" no such word" then
-      dsp@ s0 @ u> if abort" stack underflow" then
+      0= abort" no such word"
+      dsp@ s0 @ u> abort" stack underflow"
       space ." ok " cr
     again ;
 \ and set the variable to tie the knot with abort

@@ -3,7 +3,6 @@ emulator:
  - priority queue scheduling rather than every-device-every-tick
  - detection and halt (awaiting interrupt) on halt-loop
 goforth:
- - 'term green' should abort!
  - move all raw assembler to before forthstart
  - data stack in sp
  - assembler
