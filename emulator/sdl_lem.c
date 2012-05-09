@@ -28,12 +28,11 @@
 #include <stdlib.h>
 
 #include "dcpu.h"
-#include "font.xbm"
 
 #ifndef USE_SDL
 
 // stubs for building without graphics support:
-void dcpu_initlem(dcpu *dcpu) {}
+void dcpu_initlem(dcpu *dcpu) { (void)dcpu; }
 u16 dcpu_killlem(void) { return 0; }
 
 #else /* USE_SDL */
@@ -41,6 +40,8 @@ u16 dcpu_killlem(void) { return 0; }
 // the real SDL implementation follows...
 
 #include <SDL.h>
+
+#include "font.xbm"
 
 #define WIN_WIDTH   (SCR_WIDTH * 4 + 2 * SCR_BORDER)
 #define WIN_HEIGHT  (SCR_HEIGHT * 8 + 2 * SCR_BORDER)

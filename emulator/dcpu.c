@@ -140,8 +140,14 @@ int main(int argc, char **argv) {
         puts("dcpu-16, version " DCPU_VERSION);
         return 0;
       case 'g':
+#ifdef USE_SDL
         graphics = true;
         break;
+#else
+        fprintf(stderr, "graphics not supported in this build!\n");
+        fprintf(stderr, "  (perhaps try installing SDL and rebuilding?)\n");
+        return 1;
+#endif
       case 'k': {
         char *endptr;
         khz = strtoul(optarg, &endptr, 10);
