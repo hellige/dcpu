@@ -1,10 +1,13 @@
+emulator:
  - pluggable hardware devices via command-line option
  - priority queue scheduling rather than every-device-every-tick
- - detection and halt pending interrupt on halt-loop
- - forth hacking
-   - move all raw assembler to before forthstart
-   - data stack in sp
-   - assembler
+ - detection and halt (awaiting interrupt) on halt-loop
+goforth:
+ - 'see u/mod' is wrong!
+ - 'term green' should abort!
+ - move all raw assembler to before forthstart
+ - data stack in sp
+ - assembler
+misc:
  - list of 1.7-compatible tools?
  - 1.7 emulator test cases?
- - 'see u/mod' is wrong!
