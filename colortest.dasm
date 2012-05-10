@@ -31,7 +31,7 @@ inithw.2:   set a, 0            ; map screen to vidram
             set c, 0
             set i, 0
 loop:       ife i, 384          ; wrote the whole screen?
-            set pc, done
+            set pc, wait
             set [a], b          ; set the fg
             shl [a], 0x4
             bor [a], c          ; set the bg
@@ -49,9 +49,36 @@ loop:       ife i, 384          ; wrote the whole screen?
             add b, 1            ; advance fg each time
             set pc, loop        ; again
 
-done:       sub pc, 1           ; halt
+wait:       ifl [count], 10     ; wait 5 seconds
+            set pc, wait        ; halt
+
+; palette cycling test
+            set a, 5
+            set b, [palram]
+            hwi [display]
+            set a, 2
+            set b, [palram]
+            hwi [display]
+            ias 0               ; disable interrupts
+            set a, 0            ; reset clock rate to 60hz
+            set b, 1
+            hwi [clock]
+            set i, 0
+palloop:    set j, i
+            add j, [palram]
+            add [j], 1
+            add i, 1
+            mod i, 16
+            set a, 1            ; await clock tick
+            hwi [clock]
+            set x, c
+waittick:   hwi [clock]
+            ife x, c
+            set pc, waittick
+            set pc, palloop     ; continue cycling until shutdown
 
 isr:        set push, b         ; save
+            add [count], 1      ; increment tick count
             add [border], 1     ; advance border color
             set a, 3            ; and set the border
             set b, [border]
@@ -63,4 +90,6 @@ isr:        set push, b         ; save
 display:    dw 0xffff
 clock:      dw 0xffff
 vidram:     dw 0x8000
+palram:     dw 0x9000
 border:     dw 0
+count:      dw 0
