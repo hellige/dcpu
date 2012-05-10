@@ -107,6 +107,10 @@ static u16 lem_hwi(dcpu *dcpu) {
 static void lem_redraw(dcpu *dcpu, tstamp_t now); // TODO delete
 static void lem_tick(dcpu *dcpu, tstamp_t now) {
   if (now > screen.nexttick) {
+    // we need to drain the event queue on os x, even if we don't care about
+    // events. otherwise, our graphics window gets the fearsome beachball.
+    SDL_Event event;
+    while (SDL_PollEvent(&event));
     lem_redraw(dcpu, now); // TODO how to hook into dcpu_redraw?
     screen.nexttick += screen.tickns;
   }
