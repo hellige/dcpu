@@ -46,14 +46,20 @@ u16 dcpu_killlem(void) { return 0; }
 #define WIN_WIDTH   (SCR_WIDTH * 4 + 2 * SCR_BORDER)
 #define WIN_HEIGHT  (SCR_HEIGHT * 8 + 2 * SCR_BORDER)
 
+struct tile_t {
+  uint32_t glyph;
+  uint32_t fg;
+  uint32_t bg;
+};
+
 struct screen_t {
   tstamp_t tickns;
   tstamp_t nexttick;
   tstamp_t blinkns;
   tstamp_t nextblink;
   bool curblink;
-  u16 contents[SCR_HEIGHT * SCR_WIDTH];
-  u16 curborder;
+  struct tile_t contents[SCR_HEIGHT * SCR_WIDTH];
+  uint32_t curborder;
   u16 nextborder;
   SDL_Surface *scr;
   u16 vram;
@@ -133,7 +139,7 @@ void dcpu_initlem(dcpu *dcpu) {
   screen.fontram = 0;
 
   for (int i = 0; i < SCR_HEIGHT * SCR_WIDTH; i++)
-    screen.contents[i] = 0;
+    screen.contents[i] = (struct tile_t) {0, 0, 0};
 
   // initialize font from xbm
   int w = font_width;
@@ -196,31 +202,39 @@ static uint32_t color(dcpu *dcpu, char idx) {
 static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
   u16 word = dcpu->ram[screen.vram+addr];
 
-  // check cache, being mindful of blink...
-  bool blink = word & 0x80;
-  if (blink && !screen.curblink) word &= ~0x80;
-  if (word == screen.contents[addr]) return;
-  screen.contents[addr] = word;
-  screen.dirty = true;
-
   int left = col * 4 + SCR_BORDER;
   int top = row * 8 + SCR_BORDER;
   
   char charidx = word & 0x7f;
+  bool blink = word & 0x80;
   char fgidx = word >> 12;
   char bgidx = (word >> 8) & 0xf;
   uint32_t fg = color(dcpu, fgidx);
   uint32_t bg = color(dcpu, bgidx);
 
-  // be very careful here. fontram can be near the high end, in which case we
-  // need to be sure to handle wrapping correctly, even if we wrap in the
-  // middle of a single glyph...
-  // this is always fine, since screen.fontram is 0 when unmapped:
-  u16 lglyphidx = screen.fontram + (charidx*2);
-  u16 rglyphidx = lglyphidx+1;
-  u16 lglyph = (screen.fontram ? dcpu->ram : font)[lglyphidx];
-  u16 rglyph = (screen.fontram ? dcpu->ram : font)[rglyphidx];
-  uint32_t glyph = (lglyph << 16) | rglyph;
+  // default to blank in case of blinked-out glyph...
+  uint32_t glyph = 0;
+  if (!blink || screen.curblink) {
+    // be very careful here. fontram can be near the high end, in which case we
+    // need to be sure to handle wrapping correctly, even if we wrap in the
+    // middle of a single glyph...
+    // this is always fine, since screen.fontram is 0 when unmapped:
+    u16 lglyphidx = screen.fontram + (charidx*2);
+    u16 rglyphidx = lglyphidx+1;
+    u16 lglyph = (screen.fontram ? dcpu->ram : font)[lglyphidx];
+    u16 rglyph = (screen.fontram ? dcpu->ram : font)[rglyphidx];
+    glyph = (lglyph << 16) | rglyph;
+  }
+
+  // check cache...
+  struct tile_t curtile = { glyph, fg, bg };
+  struct tile_t *cached = &screen.contents[addr];
+  if (curtile.glyph == cached->glyph
+      && curtile.fg == cached->fg
+      && curtile.bg == cached->bg)
+    return;
+  *cached = curtile;
+  screen.dirty = true;
 
   for (int x = 0; x < 4; x++) {
     for (int y = 7; y >= 0; y--) {
@@ -236,11 +250,11 @@ static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
 }
 
 static void draw_border(dcpu *dcpu) {
-  if (screen.curborder != screen.nextborder) {
-    screen.curborder = screen.nextborder;
+  uint32_t col = color(dcpu, screen.nextborder);
+  if (screen.curborder != col) {
+    screen.curborder = col;
     screen.dirty = true;
 
-    uint32_t col = color(dcpu, screen.curborder);
     SDL_Rect rect;
     rect.x = 0;
     rect.y = 0;
