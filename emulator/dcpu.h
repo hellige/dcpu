@@ -76,6 +76,7 @@ typedef struct device_t {
   u16 version;
   u16 (*hwi)(struct dcpu_t *);
   void (*tick)(struct dcpu_t *, tstamp_t);
+  void (*on_debug)(struct dcpu_t *);
 } device;
 
 typedef struct dcpu_t {
@@ -154,7 +155,6 @@ extern void dcpu_msg(char *fmt, ...)
   __attribute__ ((format (printf, 1, 2)));
 extern int dcpu_getch(void);
 extern int dcpu_getstr(char *buf, int n);
-extern void dcpu_redraw(dcpu *dcpu);
 extern void dcpu_runterm(void);
 extern void dcpu_dbgterm(void);
 extern u16 dcpu_killterm(void);

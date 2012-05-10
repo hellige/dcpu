@@ -201,8 +201,8 @@ int main(int argc, char **argv) {
   dcpu_msg("press ctrl-c or send SIGINT for debugger, ctrl-d to exit.\n");
   dcpu_run(&dcpu, debug);
 
-  if (graphics) dcpu_killlem();
   u16 vram = dcpu_killterm();
+  if (graphics) vram = dcpu_killlem();
   puts(" * dcpu-16 halted.");
 
   if (dump_screen) {

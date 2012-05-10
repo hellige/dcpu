@@ -25,6 +25,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdlib.h>
+
 #include "dcpu.h"
 
 struct clock_t {
@@ -86,4 +88,5 @@ void dcpu_initclock(dcpu *dcpu) {
   dev->mfr = 0x01220423;
   dev->hwi = &clock_hwi;
   dev->tick = &clock_tick;
+  dev->on_debug = NULL;
 }

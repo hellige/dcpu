@@ -159,77 +159,6 @@ static u16 lem_hwi(dcpu *dcpu) {
   return 0; // no extra cycles
 }
 
-static void lem_tick(dcpu *dcpu, tstamp_t now) {
-  if (now > term.nexttick) {
-    dcpu_redraw(dcpu);
-    term.nexttick += term.tickns;
-  }
-}
-
-void dcpu_initterm(dcpu *dcpu, bool display) {
-  term.tickns = 1000000000 / DISPLAY_HZ;
-  term.nexttick = dcpu_now();
-  term.keyns = 1000000000 / KBD_BAUD;
-  term.nextkey = dcpu_now();
-  term.curborder = 0;
-  term.nextborder = 0;
-  term.vram = 0;
-  term.keybufwrite = 0;
-  term.keybufread = 0;
-  term.kbdints = 0;
-
-  // set up hardware descriptors
-  device *kbd = dcpu_addhw(dcpu);
-  kbd->id = 0x30cf7406;
-  kbd->version = 1;
-  kbd->mfr = 0x01220423;
-  kbd->hwi = &kbd_hwi;
-  kbd->tick = &kbd_tick;
-  if (display) { // TODO this is pretty hokey
-    device *lem = dcpu_addhw(dcpu);
-    lem->id = 0x7349f615;
-    lem->version = 0x1802;
-    lem->mfr = 0x1c6c8b36;
-    lem->hwi = &lem_hwi;
-    lem->tick = &lem_tick;
-  }
-
-  // set up curses...
-  initscr();
-  start_color();
-  cbreak();
-  keypad(stdscr, true);
-  term.border = subwin(stdscr, 14, 36, 0, 0);
-  term.vidwin = subwin(stdscr, 12, 32, 1, 2);
-  term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
-  keypad(term.vidwin, true);
-  keypad(term.border, true);
-  scrollok(term.dbgwin, true);
-  keypad(term.dbgwin, true);
-
-  // set up colors...
-  if (COLORS > 8) {
-    // nice terminals...
-    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15};
-    for (int i = 0; i < 16; i++)
-      for (int j = 0; j < 16; j++)
-        init_pair(color(i, j), colors[i], colors[j]);
-  } else {
-    // crappy terminals at least get something...
-    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7};
-    for (int i = 0; i < 8; i++)
-      for (int j = 0; j < 8; j++)
-        init_pair(color(i, j), colors[i], colors[j]);
-  }
-  dcpu_msg("terminal colors: %d, pairs %d, %s change colors: \n", COLORS,
-      COLOR_PAIRS, can_change_color() ? "*can*" : "*cannot*");
-}
-
-u16 dcpu_killterm(void) {
-  endwin();
-  return term.vram;
-}
-
 void dcpu_exitmsg(char *fmt, ...) {
   dcpu_killterm();
   va_list args;
@@ -289,7 +218,7 @@ static void draw_border() {
   }
 }
 
-void dcpu_redraw(dcpu *dcpu) {
+static void lem_redraw(dcpu *dcpu) {
   draw_border();
   if (term.vram) {
     // don't perform the indirection outside the loop. vid ram can be mapped
@@ -301,4 +230,77 @@ void dcpu_redraw(dcpu *dcpu) {
         draw(dcpu->ram[addr++], i, j);
   }
   wrefresh(term.vidwin);
+}
+
+static void lem_tick(dcpu *dcpu, tstamp_t now) {
+  if (now > term.nexttick) {
+    lem_redraw(dcpu);
+    term.nexttick += term.tickns;
+  }
+}
+
+void dcpu_initterm(dcpu *dcpu, bool display) {
+  term.tickns = 1000000000 / DISPLAY_HZ;
+  term.nexttick = dcpu_now();
+  term.keyns = 1000000000 / KBD_BAUD;
+  term.nextkey = dcpu_now();
+  term.curborder = 0;
+  term.nextborder = 0;
+  term.vram = 0;
+  term.keybufwrite = 0;
+  term.keybufread = 0;
+  term.kbdints = 0;
+
+  // set up hardware descriptors
+  device *kbd = dcpu_addhw(dcpu);
+  kbd->id = 0x30cf7406;
+  kbd->version = 1;
+  kbd->mfr = 0x01220423;
+  kbd->hwi = &kbd_hwi;
+  kbd->tick = &kbd_tick;
+  kbd->on_debug = NULL;
+  if (display) { // TODO this is pretty hokey
+    device *lem = dcpu_addhw(dcpu);
+    lem->id = 0x7349f615;
+    lem->version = 0x1802;
+    lem->mfr = 0x1c6c8b36;
+    lem->hwi = &lem_hwi;
+    lem->tick = &lem_tick;
+    lem->on_debug = &lem_redraw;
+  }
+
+  // set up curses...
+  initscr();
+  start_color();
+  cbreak();
+  keypad(stdscr, true);
+  term.border = subwin(stdscr, 14, 36, 0, 0);
+  term.vidwin = subwin(stdscr, 12, 32, 1, 2);
+  term.dbgwin = subwin(stdscr, LINES - (SCR_HEIGHT+3), COLS, SCR_HEIGHT+2, 0);
+  keypad(term.vidwin, true);
+  keypad(term.border, true);
+  scrollok(term.dbgwin, true);
+  keypad(term.dbgwin, true);
+
+  // set up colors...
+  if (COLORS > 8) {
+    // nice terminals...
+    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15};
+    for (int i = 0; i < 16; i++)
+      for (int j = 0; j < 16; j++)
+        init_pair(color(i, j), colors[i], colors[j]);
+  } else {
+    // crappy terminals at least get something...
+    int colors[] = {0, 4, 2, 6, 1, 5, 3, 7};
+    for (int i = 0; i < 8; i++)
+      for (int j = 0; j < 8; j++)
+        init_pair(color(i, j), colors[i], colors[j]);
+  }
+  dcpu_msg("terminal colors: %d, pairs %d, %s change colors: \n", COLORS,
+      COLOR_PAIRS, can_change_color() ? "*can*" : "*cannot*");
+}
+
+u16 dcpu_killterm(void) {
+  endwin();
+  return term.vram;
 }

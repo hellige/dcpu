@@ -584,7 +584,10 @@ void dcpu_run(dcpu *dcpu, bool debugboot) {
     if (action == A_EXIT) running = false;
     if (action == A_BREAK || dcpu_break) {
       dcpu_break = false;
-      dcpu_redraw(dcpu); // force a vram redraw before entering debugger
+      // allow to force a vram redraw or whatever else before entering debugger
+      for (int i = 0; i < dcpu->nhw; i++)
+        if (dcpu->hw[i].on_debug)
+          dcpu->hw[i].on_debug(dcpu);
       dcpu_dbgterm();
       running = dcpu_debug(dcpu);
       if (running) dcpu_msg("running...\n");

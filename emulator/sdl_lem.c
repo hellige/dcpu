@@ -110,81 +110,6 @@ static u16 lem_hwi(dcpu *dcpu) {
   return 0; // no extra cycles
 }
 
-static void lem_redraw(dcpu *dcpu, tstamp_t now); // TODO delete
-static void lem_tick(dcpu *dcpu, tstamp_t now) {
-  if (now > screen.nexttick) {
-    // we need to drain the event queue on os x, even if we don't care about
-    // events. otherwise, our graphics window gets the fearsome beachball.
-    SDL_Event event;
-    while (SDL_PollEvent(&event));
-    lem_redraw(dcpu, now); // TODO how to hook into dcpu_redraw?
-    screen.nexttick += screen.tickns;
-  }
-}
-
-uint8_t font_pixel(int n) {
-  return ((font_bits[n/8] >> n%8) & 1) ^ 1;
-}
-
-void dcpu_initlem(dcpu *dcpu) {
-  screen.tickns = 1000000000 / DISPLAY_HZ;
-  screen.nexttick = dcpu_now();
-  screen.blinkns = 1000000000 / BLINK_HZ;
-  screen.nextblink = dcpu_now();
-  screen.curblink = false;
-  screen.curborder = 0;
-  screen.nextborder = 0;
-  screen.vram = 0;
-  screen.palram = 0;
-  screen.fontram = 0;
-
-  for (int i = 0; i < SCR_HEIGHT * SCR_WIDTH; i++)
-    screen.contents[i] = (struct tile_t) {0, 0, 0};
-
-  // initialize font from xbm
-  int w = font_width;
-  for (int j = 0; j < font_height; j += 8) {
-    for (int i = 0; i < w; i += 2) {
-      int idx = j*w + i;
-      u16 ch = 0;
-      for (int k = 0; k < 8; k++) {
-        ch |= font_pixel(idx   + k*w) << (k+8);
-        ch |= font_pixel(idx+1 + k*w) << k;
-      }
-      font[i/2 + j*w/16] = ch;
-    }
-  }
-
-  // set up hardware descriptors
-  device *lem = dcpu_addhw(dcpu);
-  lem->id = 0x7349f615;
-  lem->version = 0x1802;
-  lem->mfr = 0x1c6c8b36;
-  lem->hwi = &lem_hwi;
-  lem->tick = &lem_tick;
-
-  // set up the window
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-    dcpu_exitmsg("unable to init sdl: %s\n", SDL_GetError());
-    exit(1);
-  }
-
-  screen.scr = SDL_SetVideoMode(WIN_WIDTH * SCR_SCALE, WIN_HEIGHT * SCR_SCALE,
-      32 /* bits-per-pixel*/,
-      SDL_SWSURFACE | SDL_DOUBLEBUF);
-  if (!screen.scr) {
-    dcpu_exitmsg("unable to set sdl video mode: %s\n", SDL_GetError());
-    exit(1);
-  }
-
-  SDL_WM_SetCaption("DCPU-16 LEM-1802", NULL);
-}
-
-u16 dcpu_killlem(void) {
-  SDL_Quit();
-  return screen.vram; // TODO generalize!
-}
-
 static uint32_t color(dcpu *dcpu, char idx) {
   // careful. palram can be near the high end, in which case we need to be sure
   // to handle wrapping correctly...
@@ -294,6 +219,85 @@ void lem_redraw(dcpu *dcpu, tstamp_t now) {
   }
   if (screen.dirty) SDL_Flip(screen.scr);
   if (SDL_MUSTLOCK(screen.scr)) SDL_UnlockSurface(screen.scr);
+}
+
+static void lem_ondebug(dcpu *dcpu) {
+  lem_redraw(dcpu, dcpu_now());
+}
+
+static void lem_tick(dcpu *dcpu, tstamp_t now) {
+  if (now > screen.nexttick) {
+    // we need to drain the event queue on os x, even if we don't care about
+    // events. otherwise, our graphics window gets the fearsome beachball.
+    SDL_Event event;
+    while (SDL_PollEvent(&event));
+    lem_redraw(dcpu, now);
+    screen.nexttick += screen.tickns;
+  }
+}
+
+uint8_t font_pixel(int n) {
+  return ((font_bits[n/8] >> n%8) & 1) ^ 1;
+}
+
+void dcpu_initlem(dcpu *dcpu) {
+  screen.tickns = 1000000000 / DISPLAY_HZ;
+  screen.nexttick = dcpu_now();
+  screen.blinkns = 1000000000 / BLINK_HZ;
+  screen.nextblink = dcpu_now();
+  screen.curblink = false;
+  screen.curborder = 0;
+  screen.nextborder = 0;
+  screen.vram = 0;
+  screen.palram = 0;
+  screen.fontram = 0;
+
+  for (int i = 0; i < SCR_HEIGHT * SCR_WIDTH; i++)
+    screen.contents[i] = (struct tile_t) {0, 0, 0};
+
+  // initialize font from xbm
+  int w = font_width;
+  for (int j = 0; j < font_height; j += 8) {
+    for (int i = 0; i < w; i += 2) {
+      int idx = j*w + i;
+      u16 ch = 0;
+      for (int k = 0; k < 8; k++) {
+        ch |= font_pixel(idx   + k*w) << (k+8);
+        ch |= font_pixel(idx+1 + k*w) << k;
+      }
+      font[i/2 + j*w/16] = ch;
+    }
+  }
+
+  // set up hardware descriptors
+  device *lem = dcpu_addhw(dcpu);
+  lem->id = 0x7349f615;
+  lem->version = 0x1802;
+  lem->mfr = 0x1c6c8b36;
+  lem->hwi = &lem_hwi;
+  lem->tick = &lem_tick;
+  lem->on_debug = &lem_ondebug;
+
+  // set up the window
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    dcpu_exitmsg("unable to init sdl: %s\n", SDL_GetError());
+    exit(1);
+  }
+
+  screen.scr = SDL_SetVideoMode(WIN_WIDTH * SCR_SCALE, WIN_HEIGHT * SCR_SCALE,
+      32 /* bits-per-pixel*/,
+      SDL_SWSURFACE | SDL_DOUBLEBUF);
+  if (!screen.scr) {
+    dcpu_exitmsg("unable to set sdl video mode: %s\n", SDL_GetError());
+    exit(1);
+  }
+
+  SDL_WM_SetCaption("DCPU-16 LEM-1802", NULL);
+}
+
+u16 dcpu_killlem(void) {
+  SDL_Quit();
+  return screen.vram;
 }
 
 #endif /* USE_SDL */
