@@ -186,13 +186,15 @@ static uint32_t color(dcpu *dcpu, char idx) {
   u16 r = (col & 0x0f00) >> 8; r |= r << 4;
   u16 g = (col & 0x00f0) >> 4; g |= g << 4;
   u16 b = (col & 0x000f);      b |= b << 4;
-  return (r << 16) | (g << 8) | b;
+  return SDL_MapRGB(screen.scr->format, r, g, b);
 }
 
 static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
   u16 word = dcpu->ram[screen.vram+addr];
 
-  // check cache...
+  // check cache, being mindful of blink...
+  bool blink = word & 0x80;
+  if (blink && !screen.curblink) word &= ~0x80;
   if (word == screen.contents[addr]) return;
   screen.contents[addr] = word;
   screen.dirty = true;
@@ -201,7 +203,6 @@ static void draw(dcpu *dcpu, u16 addr, u16 row, u16 col) {
   int top = row * 8 + SCR_BORDER;
   
   char charidx = word & 0x7f;
-  bool blink = word & 0x80;
   char fgidx = word >> 12;
   char bgidx = (word >> 8) & 0xf;
   uint32_t fg = color(dcpu, fgidx);
@@ -273,8 +274,8 @@ void lem_redraw(dcpu *dcpu, tstamp_t now) {
       for (u16 j = 0; j < SCR_WIDTH; j++)
         draw(dcpu, vaddr++, i, j);
   }
-  if (SDL_MUSTLOCK(screen.scr)) SDL_UnlockSurface(screen.scr);
   if (screen.dirty) SDL_Flip(screen.scr);
+  if (SDL_MUSTLOCK(screen.scr)) SDL_UnlockSurface(screen.scr);
 }
 
 #endif /* USE_SDL */
