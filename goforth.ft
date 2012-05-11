@@ -79,11 +79,16 @@
 : 0<  ( n -- ? ) 0 < ;
 : 0>  ( n -- ? ) 0 > ;
 
+\ Primitive branching helpers.
+: start-branch  ( -- addr ) compile branch here 0 , ;
+: start-0branch ( -- addr ) compile 0branch here 0 , ;
+: end-branch    ( addr -- ) dup here swap - swap ! ;
+
 
 \ if-then-else
-: if   compile 0branch here 0 , ; immediate
-: then   dup here swap - swap ! ; immediate
-: else   compile branch here 0 , swap dup here swap - swap ! ; immediate
+: if     start-0branch ; immediate
+: then   end-branch ; immediate
+: else   start-branch swap end-branch ; immediate
 
 \ unless is just bizarro if
 : unless   compile not [compile] if ; immediate
@@ -96,8 +101,8 @@
 : again   compile branch here - , ; immediate
 
 \ begin COND while LOOP repeat
-: while   compile 0branch here 0 , ; immediate
-: repeat   compile branch swap here - , dup here swap - swap ! ; immediate
+: while    start-0branch ; immediate
+: repeat   compile branch swap here - , end-branch ; immediate
 
 
 \ do LOOP loop
@@ -108,14 +113,14 @@
 \ ?do skips the loop if limit and start are equal. (this explains the initial 0
 \ in the definition of do.)
 : ?do  compile 2dup compile <> \ do the test
-       compile 0branch here 0 , \ branch if equal
+       start-0branch \ branch if equal
        here compile 2>r ; immediate
 
 : loop compile 2r> \ fetch limit and index
        compile 1+ \ increment index
        compile 2dup compile = \ do the test
        compile 0branch here - , \ and branch back if it failed
-       ?dup if dup here swap - swap ! then \ set the initial branch, if any
+       ?dup if end-branch then \ set the initial branch, if any
        compile 2drop \ drop the limit and index when we're done
        ; immediate
 
@@ -127,7 +132,7 @@
         compile rot compile + \ perform increment
         compile 2dup compile <= \ do the test
         compile 0branch here - , \ and branch back if it failed
-        ?dup if dup here swap - swap ! then \ set the initial branch, if any
+        ?dup if end-branch then \ set the initial branch, if any
         compile 2drop \ drop the limit and index when we're done
         ; immediate
 
@@ -231,13 +236,13 @@
 \ strings
 : .(   char ) parse type ; immediate
 
-: S"   compile litstring  char " parse
+: s"   compile litstring  char " parse
        dup ,                    \ compile the count
        here                     \ save current compile location
        swap dup allot           \ advance it
        move ; immediate         \ copy the string
 
-: ."   [compile] S"  compile type ; immediate
+: ."   [compile] s"  compile type ; immediate
 
 
 \ memory dump
@@ -261,7 +266,7 @@ variable quitword
 : abort   s0 @ dsp!  quitword @ execute ;
 \ abort" is similar, but prints a message and only fires if n is non-zero
 : doabrt  ( n a u -- ) rot if cr ." ABORT: " type abort else 2drop then ;
-: abort"  ( n -- )  [compile] S" compile doabrt ; immediate
+: abort"  ( n -- )  [compile] s" compile doabrt ; immediate
 
 
 \ words to handle terminal attributes. see below for examples...
