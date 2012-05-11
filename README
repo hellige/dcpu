@@ -136,3 +136,4 @@ Credits
 The built-in disassembler includes code from Brian Swetland's DCPU-16 emulator,
 see the file disassembler.c for license and copyright info.
 
+Thanks to Corbin Simpson for various improvements to goforth.
