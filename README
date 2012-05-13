@@ -24,23 +24,33 @@ For options, just try:
 
 The Emulator
 
-The emulator is written in C with curses for video display. It's well tested
-and has a number of nice options. It builds on both Mac OS and Linux with gcc.
-
-I think it's about as close to the current consensus specs as is achievable
-with ncurses. Obviously bitmapped graphics aren't supported, so the LEM-1802
-support doesn't support MEM_MAP_FONT or MEM_MAP_PALETTE. (They generate an
-emulator warning, but are otherwise silently ignored.) It may be possible to
-provided limited palette support, at least on fancier terminals, but it's
-not a high priority unless someone asks for it. It's also difficult or 
-impossible to fully support the documented key scan codes in curses, since
-for example it's impossible to detect presses of shift/control in isolation.
+The emulator is written in C and supports both curses and SDL (if available at
+compile-time) for video display. It's well tested and has a number of nice
+options. It builds on both Mac OS and Linux with gcc.
 
 The emulator supports the 'standard' LEM-1802 display, keyboard, and clock.
 I'm not sure what other emulators are doing, but this one will refuse to
 overflow the interrupt queue: new interrupts will be dropped and the emulator
 will break to the debugger on attempted overflow. This seems friendlier than
 'catching fire'.
+
+To enable the SDL graphics, pass the -g command-line option. The SDL graphics
+support the entire LEM-1802 spec including custom font and color palette. When
+using the SDL graphics window, keyboard input is still read from the terminal,
+so be sure to keep your keyboard focus in the terminal window. The use of SDL
+introduces a few quirks on Mac OS, such as insisting on opening a new
+"application" even if the SDL graphics window is disabled. This is unfortunate,
+but apparently unavoidable. It's a minor irritation in any case.
+
+I think the curses display support is about as close to the current consensus
+specs as is achievable with ncurses. Obviously bitmapped graphics aren't
+supported, so the LEM-1802 support doesn't support MEM_MAP_FONT or
+MEM_MAP_PALETTE. (They generate an emulator warning, but are otherwise silently
+ignored.) It may be possible to provided limited palette support, at least on
+fancier terminals, but it's not a high priority unless someone asks for it.
+It's also difficult or impossible to fully support the documented key scan
+codes in curses, since for example it's impossible to detect presses of
+shift/control in isolation.
 
 For best colors, run in a terminal with good color support. You may have to
 fiddle around to get curses to realize your colors are good. For example, 
@@ -62,9 +72,9 @@ goforth
 The real fun starts in goforth.dasm and goforth.ft. goforth is an
 implementation of the Forth programming language for DCPU-16. There's still
 plenty of work to be done, but it's already quite usable. For example, it
-contains a built-in decompiler/disassembler and other amenities. (In fact, you
-might take a look at the file disasm.ft for an example of some non-trivial code
-written in goforth.)
+contains a built-in assembler, decompiler/disassembler and other amenities.
+(In fact, you might take a look at the files asm.ft and disasm.ft for examples
+of some non-trivial code written in goforth.)
 
 The bootstrapped goforth image should run on any DCPU-16 1.7 emulator with
 a compatible display/keyboard. (It'll run on others, too, but won't do much,
@@ -137,3 +147,6 @@ The built-in disassembler includes code from Brian Swetland's DCPU-16 emulator,
 see the file disassembler.c for license and copyright info.
 
 Thanks to Corbin Simpson for various improvements to goforth.
+
+Thanks to Juan Felipe Garcia Catalan for contributing the goforth assembler
+(see asm.ft).
