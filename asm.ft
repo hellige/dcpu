@@ -1,4 +1,4 @@
-\ Copyright (c) 2012, Juan Felipe Garcia Catalan
+\ Copyright (c) 2012, Matt Hellige
 \ All rights reserved.
 \
 \ Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,8 @@
 
 
 \ this file contains a simple forth assembler loosely based on ideas from
-\ http://www.bradrodriguez.com/papers/tcjassem.txt
-
+\   http://www.bradrodriguez.com/papers/tcjassem.txt
+\ this file was originally written by Juan Felipe Garcia Catalan.
 
 hex
 
@@ -58,35 +58,35 @@ d  basic-op shr, e  basic-op asr, f  basic-op shl,
 16 basic-op ifl, 17 basic-op ifu, 1a basic-op adx,
 1b basic-op sbx, 1e basic-op sti, 1f basic-op std,
 
-\special opcodes return their value and a 0
+\ special opcodes return their value and a 0
 : special-op create , does> @ 0 assemble ;
 
 1  special-op jsr, 8  special-op int, 9  special-op iag,
 a  special-op ias, b  special-op rfi, c  special-op iaq,
 10 special-op hwn, 11 special-op hwq, 12 special-op hwi,
 
-\registers
+\ registers
 0 constant Ar 1 constant Br 2 constant Cr
 3 constant Xr 4 constant Yr 5 constant Zr
 6 constant Ir 7 constant Jr
 
-\deal with the extra word
+\ deal with the extra word
 : nextword swap 1 aorb @ ! 1 aorb @ + ! bword aorb ! ;
 
-\[register]
+\ [register]
 : [r] 8 + ;
 
-\[register + next word]
+\ [register + next word]
 : [r+] 10 + nextword ;
 
-\push, pop, peek
+\ push, pop, peek
 18 constant push, 18 constant pop, 19 constant peek,
 : [sp+] 1a nextword ;
 
-\sp, pc , ex
+\ sp, pc , ex
 1b constant sp, 1c constant pc, 1d constant ex,
 
-\[nextword]
+\ [nextword]
 : [nw] 1e nextword ;
 
 \ literal value, either as short form or into next word
@@ -123,7 +123,7 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 
 \ we can now create codewords from goforth
-: code create here here 1 - ! ;
+: :code create here here 1 - ! ;
 
 \ this is equivalent to the 'next' macro in goforth.dasm
 : next;
@@ -148,38 +148,38 @@ decimal
 
 \ example asm words
 
-code five ( n -- 5 )
-     5 l, Zr [r] set,
-next;
+\ :code five ( n -- 5 )
+\      5 l, Zr [r] set,
+\ next;
 
-code pushfive ( -- 5 5 5 5 5 )
-     0 l, Ar set, 
-     begin, 
-       1 l, Zr sub, 
-       5 l, Zr [r] set,
-       1 l, Ar add, 
-       5 l, Ar ifn, while, 
-     next;
+\ :code pushfive ( -- 5 5 5 5 5 )
+\      0 l, Ar set, 
+\      begin, 
+\        1 l, Zr sub, 
+\        5 l, Zr [r] set,
+\        1 l, Ar add, 
+\        5 l, Ar ifn, while, 
+\      next;
 
-code five?
-     false l, Ar set,
-     5 l, Zr [r] =if,
-       true l, Ar set,
-     then,
-     Ar Zr [r] set,
-     next;
+\ :code five?
+\      false l, Ar set,
+\      5 l, Zr [r] =if,
+\        true l, Ar set,
+\      then,
+\      Ar Zr [r] set,
+\      next;
 
-code fiftyfive?
-     55 l, Zr [r] =if,
-       true l, Zr [r] set,
-     else,
-       false l, Zr [r] set,
-     then,
-     next;
+\ :code fiftyfive?
+\      55 l, Zr [r] =if,
+\        true l, Zr [r] set,
+\      else,
+\        false l, Zr [r] set,
+\      then,
+\      next;
 
-: gimmefive create code; 5 l, Zr [r] set, next;
+\ : gimmefive create code; 5 l, Zr [r] set, next;
 
-\ don't save the new image, prepend to disasm.ft for now instead
-\ here dump-core
-\ bye
+\ save the new image
+here dump-core
+bye
 
