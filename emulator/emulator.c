@@ -38,6 +38,7 @@
 #include "dcpu.h"
 #include "opcodes.h"
 
+// TODO technically this is implementation-defined. it works on gcc/x86.
 #define S(x) ((int16_t)(x))
 
 tstamp_t dcpu_now() {
@@ -432,20 +433,22 @@ static action_t execute(dcpu *dcpu, u16 instr) {
       break;
 
     case OP_ADX: {
-      u16 sum = b + a + dcpu->ex;
+      uint32_t sum = b + a + dcpu->ex;
       set(dest, sum);
-      dcpu->ex = sum < b ? 0x1 : 0; // TODO wrong
+      dcpu->ex = sum >> 16; // assuming the inevitable spec update...
       await_tick(dcpu);
       await_tick(dcpu);
       break;
     }
-
-    case OP_SBX:
-      set(dest, b - a + dcpu->ex);
-      dcpu->ex = b < a ? 0xffff : 0; // TODO wrong
+ 
+    case OP_SBX: {
+      uint32_t diff = b - a + dcpu->ex;
+      set(dest, diff);
+      dcpu->ex = diff >> 16; // TODO seems like the right thing to me, the spec needs an update. i think the real problem is that SUB should leave 1 in EX rather than 0xffff
       await_tick(dcpu);
       await_tick(dcpu);
       break;
+    }
 
     case OP_STI:
       set(dest, a);
