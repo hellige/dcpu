@@ -26,7 +26,7 @@
 
 \ this file contains a simple forth assembler loosely based on ideas from
 \   http://www.bradrodriguez.com/papers/tcjassem.txt
-\ this file was originally written by Juan Felipe Garcia Catalan.
+\ this assembler was originally written by Juan Felipe Garcia Catalan.
 
 hex
 
@@ -39,8 +39,8 @@ variable aorb aword aorb !
 
 : assemble ( a b op -- )
   swap 5 lshift or swap a lshift or ,
-  0 aword @ <> if 1 aword + @ , then
-  0 bword @ <> if 1 bword + @ , then
+  aword @ 0= unless 1 aword + @ , then
+  bword @ 0= unless 1 bword + @ , then
   0 aword !
   0 bword !
   aword aorb !
@@ -51,7 +51,7 @@ variable aorb aword aorb !
 1  basic-op set, 2  basic-op add, 3  basic-op sub,
 4  basic-op mul, 5  basic-op mli, 6  basic-op div,
 7  basic-op dvi, 8  basic-op mod, 9  basic-op mdi,
-a  basic-op and, b  basic-op bor, c  basic-op xor,
+a  basic-op and, 0x b  basic-op bor, c  basic-op xor,
 d  basic-op shr, e  basic-op asr, f  basic-op shl,
 10 basic-op ifb, 11 basic-op ifc, 12 basic-op ife,
 13 basic-op ifn, 14 basic-op ifg, 15 basic-op ifa,
@@ -62,7 +62,7 @@ d  basic-op shr, e  basic-op asr, f  basic-op shl,
 : special-op create , does> @ 0 assemble ;
 
 1  special-op jsr, 8  special-op int, 9  special-op iag,
-a  special-op ias, b  special-op rfi, c  special-op iaq,
+a  special-op ias, 0x b  special-op rfi, c  special-op iaq,
 10 special-op hwn, 11 special-op hwq, 12 special-op hwi,
 
 \ registers
@@ -71,26 +71,32 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 6 constant Ir 7 constant Jr
 
 \ deal with the extra word
-: nextword swap 1 aorb @ ! 1 aorb @ + ! bword aorb ! ;
+: nextword   swap 1 aorb @ ! 1 aorb @ + ! bword aorb ! ;
 
 \ [register]
-: [r] 8 + ;
+: regref   8 +  constant ;
+Ar regref [Ar]  Br regref [Br]  Cr regref [Cr]
+Xr regref [Xr]  Yr regref [Yr]  Zr regref [Zr]
+Ir regref [Ir]  Jr regref [Jr]
 
 \ [register + next word]
-: [r+] 10 + nextword ;
+: regref+   10 +  constant does> @ nextword ;
+Ar regref+ [+Ar]  Br regref+ [+Br]  Cr regref+ [+Cr]
+Xr regref+ [+Xr]  Yr regref+ [+Yr]  Zr regref+ [+Zr]
+Ir regref+ [+Ir]  Jr regref+ [+Jr]
 
 \ push, pop, peek
 18 constant push, 18 constant pop, 19 constant peek,
-: [sp+] 1a nextword ;
+: [+sp] 1a nextword ;
 
-\ sp, pc , ex
+\ sp, pc, ex
 1b constant sp, 1c constant pc, 1d constant ex,
 
 \ [nextword]
 : [nw] 1e nextword ;
 
 \ literal value, either as short form or into next word
-: l, dup fffe 1e within if   
+: l, dup ffff 1f within if
        21 +
      else
        1f 
@@ -104,22 +110,19 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 : while, ( addr -- ) here swap - 1 + l, pc, sub, ;
 
 \ if, ... then,
-\ TODO else,
-: if, ( -- addr ) 7f81 , here 0 , ; \ 7f81 is set pc, [nextword]
+: branch, ( -- addr ) 7f81 , here 0 , ; \ 7f81 is set pc, [nextword]
 : then, here swap ! ;
 : else, 7f81 ,  here  0 , swap here swap ! ;
 
 \ clearer comparison opcode generation for if, then,
-\ TODO test these!
-: =if, ifn, if, ;
-: <>if, ife, if, ;
-: &=0if, ifb, if, ;
-: &<>0if, ifc, if, ;
-: >if, ifg, if, ;
-: <if, ifl, if, ;
-: s>if, ifa, if, ;
-: s<if, ifu, if, ;
-
+: =if, ifn, branch, ;
+: <>if, ife, branch, ;
+: &=0if, ifb, branch, ;
+: &<>0if, ifc, branch, ;
+: u<=if, ifg, branch, ;
+: u>=if, ifl, branch, ;
+: <=if, ifa, branch, ;
+: >=if, ifu, branch, ;
 
 
 \ we can now create codewords from goforth
@@ -127,14 +130,15 @@ a  special-op ias, b  special-op rfi, c  special-op iaq,
 
 \ this is equivalent to the 'next' macro in goforth.dasm
 : next;
-  Yr [r] Xr set,
+  [Yr] Xr set,
   1 l, Yr add,
-  Xr [r] pc, set, ;
+  [Xr] pc, set, ;
 
 \ this works like does>, but for assembly
 \ it terminates the word definition so no need for ";" afterwards
 \ the assembled code just follows in memory
 \ and the generated words point to that code in their xt
+\ TODO this is probably not quite right...
 : code;
   compile lit here 0 ,
   compile setdoes
@@ -148,36 +152,20 @@ decimal
 
 \ example asm words
 
-\ :code five ( n -- 5 )
-\      5 l, Zr [r] set,
-\ next;
+\ bitwise rotate right
+:code ror  ( u1 u2 -- u )
+  1 l,      Zr    add,
+  -1 [+Zr]  [Zr]  shr,
+  ex,       [Zr]  bor,
+  next;
 
-\ :code pushfive ( -- 5 5 5 5 5 )
-\      0 l, Ar set, 
-\      begin, 
-\        1 l, Zr sub, 
-\        5 l, Zr [r] set,
-\        1 l, Ar add, 
-\        5 l, Ar ifn, while, 
-\      next;
+\ bitwise rotate left
+:code rol  ( u1 u2 -- u )
+  1 l,      Zr    add,
+  -1 [+Zr]  [Zr]  shl,
+  ex,       [Zr]  bor,
+  next;
 
-\ :code five?
-\      false l, Ar set,
-\      5 l, Zr [r] =if,
-\        true l, Ar set,
-\      then,
-\      Ar Zr [r] set,
-\      next;
-
-\ :code fiftyfive?
-\      55 l, Zr [r] =if,
-\        true l, Zr [r] set,
-\      else,
-\        false l, Zr [r] set,
-\      then,
-\      next;
-
-\ : gimmefive create code; 5 l, Zr [r] set, next;
 
 \ save the new image
 here dump-core
