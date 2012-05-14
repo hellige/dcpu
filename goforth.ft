@@ -193,12 +193,7 @@
 
 
 \ more arithmetic/logic
-\ TODO this doesn't handle wrapping around 0 correctly
-: within  ( n lo hi -- ? )
-    2 pick > if
-      >= if true else false then
-    else 2drop false then ;
-
+: within  ( n lo hi -- ? )  over - >r - r>  u< ;
 : min ( n n -- n ) 2dup < unless swap then drop ;
 : max ( n n -- n ) 2dup > unless swap then drop ;
 
