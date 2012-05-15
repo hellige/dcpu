@@ -5,7 +5,7 @@ emulator:
 goforth:
  - move all raw assembler to before forthstart
  - data stack in sp
- - assembler
+ - double-word arithmetic
 misc:
  - list of 1.7-compatible tools?
  - 1.7 emulator test cases?
