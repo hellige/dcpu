@@ -40,7 +40,9 @@ The Emulator
 
 The emulator is written in C and supports both curses and SDL (if available at
 compile-time) for video display. It's well tested and has a number of nice
-options. It builds on both Mac OS and Linux with gcc.
+options. It builds on both Mac OS and Linux with gcc. I assume it may also work
+on Windows with either Cygwin or MinGW, but I haven't tried it myself and don't
+intend to.
 
 The emulator supports the 'standard' LEM-1802 display, keyboard, and clock.
 I'm not sure what other emulators are doing, but this one will refuse to
