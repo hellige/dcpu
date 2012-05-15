@@ -2,7 +2,7 @@ DCPU-16 Playground
 ==================
 
 This is an emulator, assembler, and an implementation of the Forth programming
-language for notch's DCPU-16. See http://0x10c.com/doc/dcpu-16.txt for details,
+language for Notch's DCPU-16. See http://0x10c.com/doc/dcpu-16.txt for details,
 although that spec is now unofficially superseded. Newer specs are scattered
 about:
 
@@ -85,7 +85,7 @@ appear as your default terminal colors instead.
 goforth
 -------
 
-> 'i figured i owned just dark skies, and that darkness fit me best.
+> 'i figured i owned just dark skies, and that darkness fit me best.  
 >  go, folks, go forth. trust your brain! trust your body!'
 
 The real fun starts in goforth.dasm and goforth.ft. goforth is an
@@ -99,49 +99,17 @@ The bootstrapped goforth image should run on any DCPU-16 1.7 emulator with
 a compatible display/keyboard. (It'll run on others, too, but won't do much,
 although custom images would be quite easy to create...)
 
-The older (DCPU-16 1.1) version of goforth was tested on several other
-emulators:
-
-  * Notch's 'official' prototype, from http://dcpu.com/highnerd
-
-    goforth runs correctly in this emulator, and you can play with it
-    online here: http://matt.immute.net/files/goforth
-    (This gives some evidence that my emulator is in good shape as well!)
-
-  * interfect's dcpu-emu: https://bitbucket.org/interfect/dcpu-emu
-
-    Runs correctly.
-
-  * DCPU Studio: http://badsector.github.com/dcpustud
-
-    Seems to run correctly (with 'use big endian words' and 'use keyboard
-    buffer' options), but keyboard input is broken. I get mostly the right
-    keypresses, but something about the buffer management is screwy and I
-    end up losing sync, having to press keys twice, etc. I don't want to invest
-    more time in keyboard compatibility until there's actually a spec.
-
-  * deNULL's web emulator: http://dcpu.ru
-
-    Seems to run correctly here, too, but the keyboard input is significantly
-    different (all letters are caps, punctuation doesn't work) so it's a little
-    hard to do too much testing.
-
-  * http://0x10co.de
-
-    Again, everything looks good, but keyboard input is (again, but
-    differently) broken, so it's hard to do much. And again, I'm going to wait
-    for a spec.
-
-I am most interested in hearing whether the new 1.7 version works on other
-emulators, but I've been busy updating my own and haven't checked the status
-of many other emulators yet. As far as I know, there is not yet any official
-1.7-compatible emulator from Notch.
+goforth has been tested on several emulators. I am most interested in hearing
+whether it works on others, but I haven't seen a good list of tools which have
+been updated to the 1.7 specs. As far as I know, there is not yet any official
+1.7-compatible emulator from Notch, although the old (DCPU-16 1.1) version of
+goforth worked without modification in the old version of Notch's emulator.
 
   * http://0x10co.de/hiwhx
 
     Post-1.7, the keyboard handling is better specified and things look
-    very good. There are a couple of fishy things, but I will boldly say
-    that they're bugs in 0x10co.de, until I hear otherwise. ;)
+    very good. There are a couple of fishy things with the keyboard, one
+    of which at least is surely an 0x10co.de bug.
 
   * http://fasm.elasticbeanstalk.com/?proj=rs5s77
 
@@ -152,9 +120,9 @@ of many other emulators yet. As far as I know, there is not yet any official
 
   * deNULL's web emulator: http://dcpu.ru
 
-    As in the case of 0x10co.de, things look pretty good, but signed math
-    is broken. It thinks -50/5, 50/-5 and 50/5 are all equal to 50 under DVI.
-    DIV does know that 50/5 is 10.
+    Here, too, things look pretty good, but signed math is broken. It thinks
+    -50/5, 50/-5 and 50/5 are all equal to 50 under DVI. DIV does know that
+    50/5 is 10.
 
 In order to bootstrap the image, I've augmented the DCPU instruction set with 
 three new instructions (all in non-basic format):
