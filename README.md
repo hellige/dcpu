@@ -90,7 +90,7 @@ goforth
 > 'i figured i owned just dark skies, and that darkness fit me best.  
 >  go, folks, go forth. trust your brain! trust your body!'
 
-The real fun starts in goforth.dasm and goforth.ft. goforth is an
+The real fun starts in forth/goforth.dasm and forth/goforth.ft. goforth is an
 implementation of the Forth programming language for DCPU-16. There's still
 plenty of work to be done, but it's already quite usable. For example, it
 contains a built-in assembler, decompiler/disassembler and other amenities.
